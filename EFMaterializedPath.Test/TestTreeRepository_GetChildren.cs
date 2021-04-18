@@ -1,5 +1,4 @@
-﻿using EFMaterializedPath.Core;
-using EFMaterializedPath.Test.Mocks;
+﻿using EFMaterializedPath.Test.Mocks;
 using FluentAssertions;
 using Xunit;
 
@@ -12,12 +11,12 @@ namespace EFMaterializedPath.Test
         public class TestTreeRepository_GetDescendants
         {
             private readonly TestDbContext dbContext;
-            private readonly TreeRepository<Category> repository;
+            private readonly TreeRepository<TestDbContext, Category> repository;
 
             public TestTreeRepository_GetDescendants()
             {
                 dbContext = TestHelpers.CreateTestDb();
-                repository = new TreeRepository<Category>(dbContext);
+                repository = new TreeRepository<TestDbContext, Category>(dbContext);
 
                 TestHelpers.CreateTestCategoryTree(dbContext, repository);
 
@@ -36,25 +35,25 @@ namespace EFMaterializedPath.Test
             public void TestOnRootNode()
             {
                 var root = dbContext.Categories.Find(1);
-                var children = repository.GetChildren(root);
+                var children = repository.QueryChildren(root);
 
                 children.Should().HaveCount(3);
             }
-            
+
             [Fact]
             public void TestOnIntermediateNode()
             {
                 var root = dbContext.Categories.Find(2);
-                var children = repository.GetChildren(root);
+                var children = repository.QueryChildren(root);
 
                 children.Should().HaveCount(2);
             }
-            
+
             [Fact]
             public void TestOnLeafNode()
             {
                 var root = dbContext.Categories.Find(8);
-                var children = repository.GetChildren(root);
+                var children = repository.QueryChildren(root);
 
                 children.Should().BeEmpty();
             }

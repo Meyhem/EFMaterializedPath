@@ -1,5 +1,4 @@
 ﻿using System.Linq;
-using EFMaterializedPath.Core;
 using EFMaterializedPath.Test.Mocks;
 using FluentAssertions;
 using Xunit;
@@ -10,12 +9,12 @@ namespace EFMaterializedPath.Test
     public class TestTreeRepository_SetParent
     {
         private readonly TestDbContext dbContext;
-        private readonly TreeRepository<Category> repository;
+        private readonly TreeRepository<TestDbContext, Category> repository;
 
         public TestTreeRepository_SetParent()
         {
             dbContext = TestHelpers.CreateTestDb();
-            repository = new TreeRepository<Category>(dbContext);
+            repository = new TreeRepository<TestDbContext, Category>(dbContext);
             
             TestHelpers.CreateTestCategoryTree(dbContext, repository);
 
@@ -67,6 +66,24 @@ namespace EFMaterializedPath.Test
 
             var seven = dbContext.Set<Category>().Find(7);
             seven.Path.Should().Be("|5|9|");
+        }
+        
+        [Fact]
+        public void SetParentOnInterleavedSubtrees()
+        {
+            var two = dbContext.Set<Category>().Find(2);
+            var five = dbContext.Set<Category>().Find(5);
+            var nine = dbContext.Set<Category>().Find(9);
+            var four = dbContext.Set<Category>().Find(4);
+
+            repository.SetParent(two, null);
+            two.Path.Should().Be("");
+            five.Path.Should().Be("|2|");
+            nine.Path.Should().Be("|2|5|");
+
+            repository.SetParent(five, four);
+            five.Path.Should().Be("|1|4|");
+            nine.Path.Should().Be("|1|4|5|");
         }
     }
 }

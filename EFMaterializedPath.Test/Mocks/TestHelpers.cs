@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Linq;
-using EFMaterializedPath.Core;
 using Microsoft.EntityFrameworkCore;
 
 namespace EFMaterializedPath.Test.Mocks
@@ -14,7 +13,8 @@ namespace EFMaterializedPath.Test.Mocks
             return new TestDbContext(builder.Options);
         }
 
-        public static void CreateTestCategoryTree(TestDbContext dbContext, TreeRepository<Category> repository)
+        public static void CreateTestCategoryTree(TestDbContext dbContext,
+            TreeRepository<TestDbContext, Category> repository)
         {
             var cats = Enumerable.Range(1, 10)
                 .Select(i => new Category {Id = i})

@@ -1,6 +1,5 @@
 using System;
 using System.Linq;
-using EFMaterializedPath.Core;
 using EFMaterializedPath.Test.Mocks;
 using FluentAssertions;
 using Xunit;
@@ -11,13 +10,13 @@ namespace EFMaterializedPath.Test
     public class TestTreeRepository_GetAncestors : IDisposable
     {
         private readonly TestDbContext dbContext;
-        private readonly TreeRepository<Category> repository;
+        private readonly TreeRepository<TestDbContext, Category> repository;
 
         public TestTreeRepository_GetAncestors()
         {
             dbContext = TestHelpers.CreateTestDb();
-            repository = new TreeRepository<Category>(dbContext);
-            
+            repository = new TreeRepository<TestDbContext, Category>(dbContext);
+
             TestHelpers.CreateTestCategoryTree(dbContext, repository);
 
             //         ┌───────1───────┐   
@@ -35,7 +34,7 @@ namespace EFMaterializedPath.Test
         public void TestOnRootNode()
         {
             var root = dbContext.Categories.Find(1);
-            var ancestors = repository.GetAncestors(root);
+            var ancestors = repository.QueryAncestors(root);
 
             ancestors.Should().BeEmpty();
         }
@@ -44,7 +43,7 @@ namespace EFMaterializedPath.Test
         public void TestOnIntermediateNode()
         {
             var node = dbContext.Categories.Find(2);
-            var ancestors = repository.GetAncestors(node).ToList();
+            var ancestors = repository.QueryAncestors(node).ToList();
 
             ancestors.Should().HaveCount(1);
             ancestors.Should().OnlyContain(c => c.Id == 1);
@@ -54,7 +53,7 @@ namespace EFMaterializedPath.Test
         public void TestOnLeafNode()
         {
             var node = dbContext.Categories.Find(7);
-            var ancestors = repository.GetAncestors(node).ToList();
+            var ancestors = repository.QueryAncestors(node).ToList();
 
             var expectedAncestorIds = new[] {9, 5, 2, 1};
 

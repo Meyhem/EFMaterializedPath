@@ -1,23 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Linq.Expressions;
+using System.Threading.Tasks;
 using EFMaterializedPath.Entity;
 using Microsoft.EntityFrameworkCore;
 
-namespace EFMaterializedPath.Core
+namespace EFMaterializedPath
 {
-    public class TreeRepository<TEntity>
-        where TEntity : class, IMaterializedPathEntity
+    public class TreeRepository<TDbContext, TEntity> : ITreeRepository<TEntity> where TEntity : class, IMaterializedPathEntity
+        where TDbContext : DbContext
     {
-        private readonly DbContext dbContext;
+        private readonly TDbContext dbContext;
 
-        public TreeRepository(DbContext dbContext)
+        public TreeRepository(TDbContext dbContext)
         {
             this.dbContext = dbContext;
         }
 
-        public IQueryable<TEntity> GetAncestors(TEntity entity)
+        public IQueryable<TEntity> QueryAncestors(TEntity entity)
         {
             if (entity == null) throw new ArgumentNullException(nameof(entity));
 
@@ -30,16 +30,18 @@ namespace EFMaterializedPath.Core
             return dbContext.Set<TEntity>().Where(e => path.Contains(e.Id));
         }
 
-        public IQueryable<TEntity> GetDescendants(TEntity entity)
+        public IQueryable<TEntity> QueryDescendants(TEntity entity)
         {
             if (entity == null) throw new ArgumentNullException(nameof(entity));
 
             var descendantPathPrefix = FormatPath(ParsePath(entity.Path).Append(entity.Id));
 
+            var set = dbContext.Set<TEntity>().Local.ToList();
+            
             return dbContext.Set<TEntity>().Where(e => e.Path.StartsWith(descendantPathPrefix));
         }
 
-        public IQueryable<TEntity> GetChildren(TEntity entity)
+        public IQueryable<TEntity> QueryChildren(TEntity entity)
         {
             if (entity == null) throw new ArgumentNullException(nameof(entity));
             
@@ -48,7 +50,7 @@ namespace EFMaterializedPath.Core
             return dbContext.Set<TEntity>().Where(e => e.Path == childrenPath);
         }
         
-        public void SetParent(TEntity entity, IMaterializedPathEntity? parent)
+        public async Task SetParent(TEntity entity, IMaterializedPathEntity? parent)
         {
             if (entity == null) throw new ArgumentNullException(nameof(entity));
 
@@ -67,7 +69,7 @@ namespace EFMaterializedPath.Core
             var oldPath = entity.Path;
             var newPath = FormatPath(path);
 
-            foreach (var descendant in GetDescendants(entity))
+            foreach (var descendant in QueryDescendants(entity))
             {
                 var newDescendantPath = ParsePath(descendant.Path.Replace(oldPath, newPath));
                 descendant.Path = FormatPath(newDescendantPath);
@@ -77,6 +79,8 @@ namespace EFMaterializedPath.Core
             entity.Level = path.Count;
             entity.Path = newPath;
             entity.ParentId = parent?.Id;
+
+            await dbContext.SaveChangesAsync();
         }
 
         private static string FormatPath(IEnumerable<int> path)
