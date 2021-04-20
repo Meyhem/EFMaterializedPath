@@ -5,6 +5,10 @@ using EFMaterializedPath.Entity;
 
 namespace EFMaterializedPath
 {
+    /// <summary>
+    /// Tree repository for manipulation with <see cref="IMaterializedPathEntity"/>
+    /// </summary>
+    /// <typeparam name="TEntity">Entity implementing <see cref="IMaterializedPathEntity"/></typeparam>
     public interface ITreeRepository<TEntity> where TEntity : class, IMaterializedPathEntity
     {
         /// <summary>
