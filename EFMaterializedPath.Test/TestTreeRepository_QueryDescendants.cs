@@ -1,5 +1,4 @@
-using System;
-using System.Linq;
+﻿using System.Linq;
 using EFMaterializedPath.Test.Mocks;
 using FluentAssertions;
 using Xunit;
@@ -7,12 +6,12 @@ using Xunit;
 namespace EFMaterializedPath.Test
 {
     // ReSharper disable once InconsistentNaming
-    public class TestTreeRepository_GetAncestors : IDisposable
+    public class TestTreeRepository_QueryDescendants
     {
         private readonly TestDbContext dbContext;
         private readonly TreeRepository<TestDbContext, Category> repository;
 
-        public TestTreeRepository_GetAncestors()
+        public TestTreeRepository_QueryDescendants()
         {
             dbContext = TestHelpers.CreateTestDb();
             repository = new TreeRepository<TestDbContext, Category>(dbContext);
@@ -34,36 +33,27 @@ namespace EFMaterializedPath.Test
         public void TestOnRootNode()
         {
             var root = dbContext.Categories.Find(1);
-            var ancestors = repository.QueryAncestors(root);
+            var descendants = repository.QueryDescendants(root);
 
-            ancestors.Should().BeEmpty();
+            descendants.Should().HaveCount(9);
         }
 
         [Fact]
         public void TestOnIntermediateNode()
         {
-            var node = dbContext.Categories.Find(2);
-            var ancestors = repository.QueryAncestors(node).ToList();
+            var intermediate = dbContext.Categories.Find(5);
+            var descendants = repository.QueryDescendants(intermediate);
 
-            ancestors.Should().HaveCount(1);
-            ancestors.Should().OnlyContain(c => c.Id == 1);
+            descendants.Should().HaveCount(2);
         }
 
         [Fact]
         public void TestOnLeafNode()
         {
-            var node = dbContext.Categories.Find(7);
-            var ancestors = repository.QueryAncestors(node).ToList();
+            var leaf = dbContext.Categories.Find(7);
+            var descendants = repository.QueryDescendants(leaf);
 
-            var expectedAncestorIds = new[] {9, 5, 2, 1};
-
-            ancestors.Should().HaveCount(4);
-            ancestors.Should().OnlyContain(c => expectedAncestorIds.Contains(c.Id));
-        }
-
-        public void Dispose()
-        {
-            dbContext.Dispose();
+            descendants.Should().BeEmpty();
         }
     }
 }

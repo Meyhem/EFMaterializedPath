@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using System.Threading.Tasks;
 using EFMaterializedPath.Test.Mocks;
 using FluentAssertions;
 using Xunit;
@@ -6,16 +7,16 @@ using Xunit;
 namespace EFMaterializedPath.Test
 {
     // ReSharper disable once InconsistentNaming
-    public class TestTreeRepository_GetDescendants
+    public class TestTreeRepository_GetPathFromRoot
     {
         private readonly TestDbContext dbContext;
         private readonly TreeRepository<TestDbContext, Category> repository;
 
-        public TestTreeRepository_GetDescendants()
+        public TestTreeRepository_GetPathFromRoot()
         {
             dbContext = TestHelpers.CreateTestDb();
             repository = new TreeRepository<TestDbContext, Category>(dbContext);
-
+            
             TestHelpers.CreateTestCategoryTree(dbContext, repository);
 
             //         ┌───────1───────┐   
@@ -30,30 +31,21 @@ namespace EFMaterializedPath.Test
         }
 
         [Fact]
-        public void TestOnRootNode()
+        public async Task GetPathFromRootOnRoot()
         {
-            var root = dbContext.Categories.Find(1);
-            var descendants = repository.QueryDescendants(root);
-
-            descendants.Should().HaveCount(9);
+            var root = await dbContext.Categories.FindAsync(1);
+            
+            (await repository.GetPathFromRootAsync(root)).Should().BeEmpty();
         }
-
+        
         [Fact]
-        public void TestOnIntermediateNode()
+        public async Task GetPathFromRootOnDeepNode()
         {
-            var intermediate = dbContext.Categories.Find(5);
-            var descendants = repository.QueryDescendants(intermediate);
+            var seven = await dbContext.Categories.FindAsync(7);
+            var path = (await repository.GetPathFromRootAsync(seven)).ToArray();
 
-            descendants.Should().HaveCount(2);
-        }
-
-        [Fact]
-        public void TestOnLeafNode()
-        {
-            var leaf = dbContext.Categories.Find(7);
-            var descendants = repository.QueryDescendants(leaf);
-
-            descendants.Should().BeEmpty();
+            path.Should().HaveCount(4);
+            path.Select(p => p.Id).Should().Equal(1, 2, 5, 9);
         }
     }
 }
