@@ -61,6 +61,6 @@ namespace EFMaterializedPath
         /// </remarks>
         /// <param name="entity">Entity to set parent of</param>
         /// <param name="parent">Parent entity or null</param>
-        Task SetParent(TEntity entity, IMaterializedPathEntity? parent);
+        Task SetParentAsync(TEntity entity, IMaterializedPathEntity? parent);
     }
 }

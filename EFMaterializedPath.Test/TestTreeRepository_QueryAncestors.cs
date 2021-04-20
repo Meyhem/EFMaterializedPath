@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using EFMaterializedPath.Test.Mocks;
 using FluentAssertions;
 using Xunit;
@@ -31,18 +32,18 @@ namespace EFMaterializedPath.Test
         }
 
         [Fact]
-        public void TestOnRootNode()
+        public async Task TestOnRootNode()
         {
-            var root = dbContext.Categories.Find(1);
+            var root = await dbContext.Categories.FindAsync(1);
             var ancestors = repository.QueryAncestors(root);
 
             ancestors.Should().BeEmpty();
         }
 
         [Fact]
-        public void TestOnIntermediateNode()
+        public async Task TestOnIntermediateNode()
         {
-            var node = dbContext.Categories.Find(2);
+            var node = await dbContext.Categories.FindAsync(2);
             var ancestors = repository.QueryAncestors(node).ToList();
 
             ancestors.Should().HaveCount(1);
@@ -50,9 +51,9 @@ namespace EFMaterializedPath.Test
         }
 
         [Fact]
-        public void TestOnLeafNode()
+        public async Task TestOnLeafNode()
         {
-            var node = dbContext.Categories.Find(7);
+            var node = await dbContext.Categories.FindAsync(7);
             var ancestors = repository.QueryAncestors(node).ToList();
 
             var expectedAncestorIds = new[] {9, 5, 2, 1};

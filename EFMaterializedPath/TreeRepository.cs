@@ -73,7 +73,7 @@ namespace EFMaterializedPath
             return await dbContext.Set<TEntity>().FindAsync(entity.ParentId);
         }
 
-        public async Task SetParent(TEntity entity, IMaterializedPathEntity? parent)
+        public async Task SetParentAsync(TEntity entity, IMaterializedPathEntity? parent)
         {
             if (entity == null) throw new ArgumentNullException(nameof(entity));
 

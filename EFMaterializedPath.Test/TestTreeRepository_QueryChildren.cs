@@ -1,4 +1,5 @@
-﻿using EFMaterializedPath.Test.Mocks;
+﻿using System.Threading.Tasks;
+using EFMaterializedPath.Test.Mocks;
 using FluentAssertions;
 using Xunit;
 
@@ -29,27 +30,27 @@ namespace EFMaterializedPath.Test
         }
 
         [Fact]
-        public void TestOnRootNode()
+        public async Task TestOnRootNode()
         {
-            var root = dbContext.Categories.Find(1);
+            var root = await dbContext.Categories.FindAsync(1);
             var children = repository.QueryChildren(root);
 
             children.Should().HaveCount(3);
         }
 
         [Fact]
-        public void TestOnIntermediateNode()
+        public async Task TestOnIntermediateNode()
         {
-            var root = dbContext.Categories.Find(2);
+            var root = await dbContext.Categories.FindAsync(2);
             var children = repository.QueryChildren(root);
 
             children.Should().HaveCount(2);
         }
 
         [Fact]
-        public void TestOnLeafNode()
+        public async Task TestOnLeafNode()
         {
-            var root = dbContext.Categories.Find(8);
+            var root = await dbContext.Categories.FindAsync(8);
             var children = repository.QueryChildren(root);
 
             children.Should().BeEmpty();
