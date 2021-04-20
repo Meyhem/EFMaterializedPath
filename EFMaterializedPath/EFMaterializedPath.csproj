@@ -3,6 +3,16 @@
     <PropertyGroup>
         <TargetFramework>net5.0</TargetFramework>
         <Nullable>enable</Nullable>
+        <Title>EFMaterializedPath</Title>
+        <Authors>Meyhem</Authors>
+        <Description>Library that provides simple materialized path tree structure for EF Entities</Description>
+        <PackageProjectUrl>https://github.com/Meyhem/EFMaterializedPath</PackageProjectUrl>
+        <PackageLicenseUrl>https://github.com/Meyhem/EFMaterializedPath/blob/master/LICENSE</PackageLicenseUrl>
+        <RepositoryUrl>https://github.com/Meyhem/EFMaterializedPath</RepositoryUrl>
+        <RepositoryType>GIT</RepositoryType>
+        <PackageTags>entityframework materialize path tree</PackageTags>
+        <Company>Meyhem</Company>
+        <AssemblyVersion>1.0.0.0</AssemblyVersion>
     </PropertyGroup>
 
     <ItemGroup>
