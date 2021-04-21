@@ -1,6 +1,6 @@
 ﻿using EFMaterializedPath.Entity;
 
-namespace EFMaterializedPath.Test.Mocks
+namespace EFMaterializedPath.Test.TestUtils
 {
     public class Category : IMaterializedPathEntity
     {

@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using EFMaterializedPath.Test.Mocks;
+using EFMaterializedPath.Test.TestUtils;
 using FluentAssertions;
 using Xunit;
 
@@ -62,9 +62,6 @@ namespace EFMaterializedPath.Test
             ancestors.Should().OnlyContain(c => expectedAncestorIds.Contains(c.Id));
         }
 
-        public void Dispose()
-        {
-            dbContext.Dispose();
-        }
+        public void Dispose() => dbContext.Dispose();
     }
 }

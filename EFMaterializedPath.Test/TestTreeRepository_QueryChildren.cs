@@ -1,5 +1,5 @@
 ﻿using System.Threading.Tasks;
-using EFMaterializedPath.Test.Mocks;
+using EFMaterializedPath.Test.TestUtils;
 using FluentAssertions;
 using Xunit;
 

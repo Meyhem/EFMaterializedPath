@@ -2,7 +2,7 @@
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
 
-namespace EFMaterializedPath.Test.Mocks
+namespace EFMaterializedPath.Test.TestUtils
 {
     public static class TestHelpers
     {

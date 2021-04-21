@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 
-namespace EFMaterializedPath.Test.Mocks
+namespace EFMaterializedPath.Test.TestUtils
 {
     public class TestDbContext : DbContext
     {
