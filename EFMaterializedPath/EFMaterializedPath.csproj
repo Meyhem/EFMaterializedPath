@@ -7,7 +7,7 @@
         <Authors>Meyhem</Authors>
         <Description>Library that provides simple materialized path tree structure for EF Entities</Description>
         <PackageProjectUrl>https://github.com/Meyhem/EFMaterializedPath</PackageProjectUrl>
-        <PackageLicenseUrl>https://github.com/Meyhem/EFMaterializedPath/blob/master/LICENSE</PackageLicenseUrl>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <RepositoryUrl>https://github.com/Meyhem/EFMaterializedPath</RepositoryUrl>
         <RepositoryType>GIT</RepositoryType>
         <PackageTags>entityframework materialize path tree</PackageTags>
