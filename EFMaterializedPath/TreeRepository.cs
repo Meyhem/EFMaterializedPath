@@ -23,6 +23,7 @@ namespace EFMaterializedPath
             if (entity == null) throw new ArgumentNullException(nameof(entity));
 
             var path = ParsePath(entity.Path);
+            
             if (path.Count == 0)
             {
                 return Enumerable.Empty<TEntity>().AsQueryable();
@@ -36,8 +37,6 @@ namespace EFMaterializedPath
             if (entity == null) throw new ArgumentNullException(nameof(entity));
 
             var descendantPathPrefix = FormatPath(ParsePath(entity.Path).Append(entity.Id));
-
-            var set = dbContext.Set<TEntity>().Local.ToList();
 
             return dbContext.Set<TEntity>().Where(e => e.Path.StartsWith(descendantPathPrefix));
         }
@@ -80,7 +79,7 @@ namespace EFMaterializedPath
             if (parent is not null && parent.Id == 0)
                 throw new InvalidOperationException(
                     $"{nameof(parent)} has {nameof(IMaterializedPathEntity.Id)}==0. " +
-                    $"Entity must be saved first before it can be used as parent");
+                    "Entity must be saved first before it can be used as parent");
 
             var path = ParsePath(parent?.Path);
 
@@ -104,6 +103,21 @@ namespace EFMaterializedPath
             entity.ParentId = parent?.Id;
 
             await dbContext.SaveChangesAsync();
+        }
+
+        public async Task DetachNodeAsync(TEntity entity)
+        {
+            if (entity == null) throw new ArgumentNullException(nameof(entity));
+
+            var children = QueryChildren(entity);
+            var parent = await GetParentAsync(entity);
+            
+            foreach (var child in children)
+            {
+                await SetParentAsync(child, parent);
+            }
+
+            await SetParentAsync(entity, null);
         }
 
         private static string FormatPath(IEnumerable<int> path)

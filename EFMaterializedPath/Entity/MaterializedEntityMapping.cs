@@ -13,7 +13,7 @@ namespace EFMaterializedPath.Entity
         public void Configure(EntityTypeBuilder<TEntity> builder)
         {
             builder.HasKey(ent => ent.Id);
-            builder.Property(ent => ent.Path).IsRequired();
+            builder.Property(ent => ent.Path).IsRequired().HasDefaultValue("");
             builder.Property(ent => ent.Level).IsRequired();
             builder.Property(ent => ent.ParentId).IsRequired(false);
 

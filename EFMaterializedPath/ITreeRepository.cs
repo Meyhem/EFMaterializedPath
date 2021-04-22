@@ -54,13 +54,27 @@ namespace EFMaterializedPath
         Task<IEnumerable<TEntity>> GetPathFromRootAsync(TEntity entity);
         
         /// <summary>
-        /// Sets <paramref name="parent"/> node of <paramref name="entity"/> and saves underlying context
+        /// Sets <paramref name="parent"/> node of <paramref name="entity"/>
         /// </summary>
         /// <remarks>
+        /// Method saves underlying context.
         /// Method has to update paths of all descendants. This can be performance heavy. 
         /// </remarks>
         /// <param name="entity">Entity to set parent of</param>
         /// <param name="parent">Parent entity or null</param>
         Task SetParentAsync(TEntity entity, IMaterializedPathEntity? parent);
+
+        /// <summary>
+        /// Detaches <paramref name="entity"/> from subtree, removing it from path of descendants. This makes the node
+        /// a root node with no ancestors or descendants.
+        /// </summary>
+        /// <remarks>
+        /// Method saves underlying context.
+        /// Method has to update paths of all descendants. This can be performance heavy. 
+        /// Detaching is necessary before deleting the node from the tree as the descendant paths need to be adjusted.
+        /// Deleting node before detaching it will leave descendants in inconsistent state.
+        /// </remarks>
+        /// <param name="entity">Entity to detach from tree</param>
+        Task DetachNodeAsync(TEntity entity);
     }
 }
