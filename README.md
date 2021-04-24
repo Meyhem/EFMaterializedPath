@@ -66,6 +66,57 @@ var repo = new TreeRepository<MyDbContext, Category>(myDbContextInstance);
 
 ## ITreeRepository READ API
 
+### QueryRoots
+Get all root nodes
+```c#
+        ┌───────1───────┐   
+        │       │       │
+    ┌───2───┐   3       4
+    │       │           │
+    5       6           8
+    │       │
+    9       10
+    │
+    7
+    
+    repository.QueryRoots()    
+    // will yield node 1
+```
+
+### Query
+Queries all nodes
+```c#
+        ┌───────1───────┐   
+        │       │       │
+    ┌───2───┐   3       4
+    │       │           │
+    5       6           8
+    │       │
+    9       10
+    │
+    7
+    
+    repository.Query()    
+    // will yield nodes 1,2,3,4,5,6,7,8,9,10
+```
+
+### GetByIdAsync
+Gets node by PK
+```c#
+        ┌───────1───────┐   
+        │       │       │
+    ┌───2───┐   3       4
+    │       │           │
+    5       6           8
+    │       │
+    9       10
+    │
+    7
+    
+    await repository.GetByIdAsync(1)    
+    // will yield node 1
+```
+
 ### QueryAncestors
 Get all nodes that precede queried node (not always in order from root)
 ```c#
