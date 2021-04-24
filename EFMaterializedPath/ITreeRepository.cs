@@ -85,15 +85,26 @@ namespace EFMaterializedPath
 
         /// <summary>
         /// Detaches <paramref name="entity"/> from subtree, removing it from path of descendants. This makes the node
-        /// a root node with no ancestors or descendants.
+        /// a root node with no ancestors or descendants. Descendants are parented to parent of detached node.
         /// </summary>
         /// <remarks>
+        /// Method does not delete detached node.
         /// Method saves underlying context.
         /// Method has to update paths of all descendants. This can be performance heavy. 
-        /// Detaching is necessary before deleting the node from the tree as the descendant paths need to be adjusted.
-        /// Deleting node before detaching it will leave descendants in inconsistent state.
         /// </remarks>
         /// <param name="entity">Entity to detach from tree</param>
         Task DetachNodeAsync(TEntity entity);
+        
+        /// <summary>
+        /// Deletes <paramref name="entity"/> from tree, removing it from path of descendants.
+        /// Descendants are parented to parent of detached node.
+        /// </summary>
+        /// <remarks>
+        /// Method deletes whole entity
+        /// Method saves underlying context.
+        /// Method has to update paths of all descendants. This can be performance heavy. 
+        /// </remarks>
+        /// <param name="entity">Entity to delete from tree</param>
+        Task RemoveNodeAsync(TEntity entity);
     }
 }

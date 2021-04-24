@@ -135,6 +135,14 @@ namespace EFMaterializedPath
             await SetParentAsync(entity, null);
         }
 
+        public async Task RemoveNodeAsync(TEntity entity)
+        {
+            await DetachNodeAsync(entity);
+            
+            dbContext.Set<TEntity>().Remove(entity);
+            await dbContext.SaveChangesAsync();
+        }
+
         private static string FormatPath(IEnumerable<int> path)
         {
             var joined = string.Join("|", path);
