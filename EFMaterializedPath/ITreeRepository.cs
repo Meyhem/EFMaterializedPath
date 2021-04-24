@@ -12,6 +12,25 @@ namespace EFMaterializedPath
     public interface ITreeRepository<TEntity> where TEntity : class, IMaterializedPathEntity
     {
         /// <summary>
+        /// Queries all root nodes
+        /// </summary>
+        /// <returns><see cref="IQueryable&lt;TEntity&gt;"/> of all roots</returns>
+        IQueryable<TEntity> QueryRoots();
+
+        /// <summary>
+        /// Arbitrary query over DbSet.
+        /// </summary>
+        /// <returns></returns>
+        IQueryable<TEntity> Query();
+
+        /// <summary>
+        /// Get single node by its primary key
+        /// </summary>
+        /// <param name="id">Id of node to retrieve</param>
+        /// <returns><see cref="TEntity"/> or null</returns>
+        Task<TEntity> GetByIdAsync(int id);
+
+        /// <summary>
         /// Queries all ancestor nodes of current node. If you need to preserve order from to to bottom,
         /// then see <see cref="GetPathFromRootAsync"/> 
         ///  

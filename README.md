@@ -239,5 +239,3 @@ Detaches node from tree, attaching children to detachee's parent
             │         
             7        
 ```
-
-

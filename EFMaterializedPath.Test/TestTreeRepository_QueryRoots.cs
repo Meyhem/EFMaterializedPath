@@ -7,19 +7,21 @@ using Xunit;
 namespace EFMaterializedPath.Test
 {
     // ReSharper disable once InconsistentNaming
-    public class TestTreeRepository_GetPathFromRoot
+    public class TestTreeRepository_QueryRoots
     {
         private readonly TestDbContext dbContext;
         private readonly TreeRepository<TestDbContext, Category> repository;
 
-        public TestTreeRepository_GetPathFromRoot()
+        public TestTreeRepository_QueryRoots()
         {
             dbContext = TestHelpers.CreateTestDb();
             repository = new TreeRepository<TestDbContext, Category>(dbContext);
-            
-            TestHelpers.CreateTestCategoryTree(dbContext, repository);
 
-            //         ┌───────1───────┐   
+            TestHelpers.CreateTestCategoryTree(dbContext, repository);
+            dbContext.Categories.Add(new Category {Id = 11});
+            dbContext.SaveChanges();
+
+            //         ┌───────1───────┬──────11
             //         │       │       │ 
             //     ┌───2───┐   3       4
             //     │       │           │
@@ -31,21 +33,10 @@ namespace EFMaterializedPath.Test
         }
 
         [Fact]
-        public async Task GetPathFromRootOnRoot()
+        public void QueryRoots()
         {
-            var root = await dbContext.Categories.FindAsync(1);
-            
-            (await repository.GetPathFromRootAsync(root)).Should().BeEmpty();
-        }
-        
-        [Fact]
-        public async Task GetPathFromRootOnDeepNode()
-        {
-            var seven = await dbContext.Categories.FindAsync(7);
-            var path = (await repository.GetPathFromRootAsync(seven)).ToArray();
-
-            path.Should().HaveCount(4);
-            path.Select(p => p.Id).Should().Equal(1, 2, 5, 9);
+            var roots = repository.QueryRoots().Select(r => r.Id);
+            roots.Should().BeEquivalentTo(1, 11);
         }
     }
 }

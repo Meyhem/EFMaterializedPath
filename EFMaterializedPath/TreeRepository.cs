@@ -18,6 +18,21 @@ namespace EFMaterializedPath
             this.dbContext = dbContext;
         }
 
+        public IQueryable<TEntity> QueryRoots()
+        {
+            return dbContext.Set<TEntity>().Where(ent => ent.ParentId == null);
+        }
+
+        public IQueryable<TEntity> Query()
+        {
+            return dbContext.Set<TEntity>();
+        }
+
+        public async Task<TEntity> GetByIdAsync(int id)
+        {
+            return await dbContext.Set<TEntity>().FindAsync(id);
+        }
+
         public IQueryable<TEntity> QueryAncestors(TEntity entity)
         {
             if (entity == null) throw new ArgumentNullException(nameof(entity));

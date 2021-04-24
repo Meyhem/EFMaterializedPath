@@ -7,16 +7,16 @@ using Xunit;
 namespace EFMaterializedPath.Test
 {
     // ReSharper disable once InconsistentNaming
-    public class TestTreeRepository_DetachNode
+    public class TestTreeRepository_GetPathFromRootAsync
     {
         private readonly TestDbContext dbContext;
         private readonly TreeRepository<TestDbContext, Category> repository;
 
-        public TestTreeRepository_DetachNode()
+        public TestTreeRepository_GetPathFromRootAsync()
         {
             dbContext = TestHelpers.CreateTestDb();
             repository = new TreeRepository<TestDbContext, Category>(dbContext);
-
+            
             TestHelpers.CreateTestCategoryTree(dbContext, repository);
 
             //         ┌───────1───────┐   
@@ -31,39 +31,21 @@ namespace EFMaterializedPath.Test
         }
 
         [Fact]
-        public async Task DetachRoot()
+        public async Task GetPathFromRootOnRoot()
         {
-            // detach node
             var root = await dbContext.Categories.FindAsync(1);
-            await repository.DetachNodeAsync(root);
-
-            var newRoots = dbContext.Categories.Where(p => p.ParentId == null);
-            // check if children has been made root
-            newRoots.Select(r => r.Id).Should().BeEquivalentTo(1, 2, 3, 4);
             
-            var two = await dbContext.Categories.FindAsync(2);
-            two.Level.Should().Be(0);
-            two.ParentId.Should().BeNull();
-            two.Path.Should().BeEmpty();
-            
-            // check of descendant paths has been updated
-            var five = await dbContext.Categories.FindAsync(5);
-            five.Level.Should().Be(1);
-            five.ParentId.Should().Be(2);
-            five.Path.Should().Be("|2|");
+            (await repository.GetPathFromRootAsync(root)).Should().BeEmpty();
         }
         
         [Fact]
-        public async Task DetachLeaf()
+        public async Task GetPathFromRootOnDeepNode()
         {
             var seven = await dbContext.Categories.FindAsync(7);
-            
-            await repository.DetachNodeAsync(seven);
-            
-            seven = await dbContext.Categories.FindAsync(7);
-            seven.Level.Should().Be(0);
-            seven.ParentId.Should().BeNull();
-            seven.Path.Should().BeEmpty();
+            var path = (await repository.GetPathFromRootAsync(seven)).ToArray();
+
+            path.Should().HaveCount(4);
+            path.Select(p => p.Id).Should().Equal(1, 2, 5, 9);
         }
     }
 }

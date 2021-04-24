@@ -7,12 +7,12 @@ using Xunit;
 namespace EFMaterializedPath.Test
 {
     // ReSharper disable once InconsistentNaming
-    public class TestTreeRepository_GetParent
+    public class TestTreeRepository_GetParentAsync
     {
         private readonly TestDbContext dbContext;
         private readonly TreeRepository<TestDbContext, Category> repository;
 
-        public TestTreeRepository_GetParent()
+        public TestTreeRepository_GetParentAsync()
         {
             dbContext = TestHelpers.CreateTestDb();
             repository = new TreeRepository<TestDbContext, Category>(dbContext);
