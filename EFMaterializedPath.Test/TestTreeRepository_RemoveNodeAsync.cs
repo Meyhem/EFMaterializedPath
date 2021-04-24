@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using System.Threading.Tasks;
 using EFMaterializedPath.Test.TestUtils;
 using FluentAssertions;
@@ -44,6 +45,16 @@ namespace EFMaterializedPath.Test
             
             var six = await dbContext.Categories.FindAsync(6);
             six.ParentId.Should().Be(1);
+        }
+        
+        [Fact]
+        public void ThrowsOnNonStoredEntity()
+        {
+            Func<Task> nullEntity = async () => await repository.RemoveNodeAsync(null!);
+            nullEntity.Should().Throw<ArgumentNullException>();
+            
+            Func<Task> nonStored = async () => await repository.RemoveNodeAsync(new Category());
+            nonStored.Should().Throw<InvalidOperationException>();
         }
     }
 }

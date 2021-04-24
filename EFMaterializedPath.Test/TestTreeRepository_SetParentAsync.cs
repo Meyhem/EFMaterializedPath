@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using EFMaterializedPath.Test.TestUtils;
 using FluentAssertions;
 using Xunit;
@@ -84,6 +85,20 @@ namespace EFMaterializedPath.Test
             await repository.SetParentAsync(five, four);
             five.Path.Should().Be("|1|4|");
             nine.Path.Should().Be("|1|4|5|");
+        }
+
+        [Fact]
+        public void ThrowsOnNonStoredEntity()
+        {
+            Func<Task> nullEntity = async () => await repository.SetParentAsync(null!, null);
+            nullEntity.Should().Throw<ArgumentNullException>();
+
+            Func<Task> nonStored = async () => await repository.SetParentAsync(new Category(), null);
+            nonStored.Should().Throw<InvalidOperationException>();
+
+            Func<Task> nonStoredParent = async () =>
+                await repository.SetParentAsync(new Category() {Id = 1}, new Category());
+            nonStoredParent.Should().Throw<InvalidOperationException>();
         }
     }
 }

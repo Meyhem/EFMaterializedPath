@@ -8,7 +8,7 @@ using Xunit;
 namespace EFMaterializedPath.Test
 {
     // ReSharper disable once InconsistentNaming
-    public class TestTreeRepository_QueryAncestors : IDisposable
+    public class TestTreeRepository_QueryAncestors
     {
         private readonly TestDbContext dbContext;
         private readonly TreeRepository<TestDbContext, Category> repository;
@@ -62,6 +62,14 @@ namespace EFMaterializedPath.Test
             ancestors.Should().OnlyContain(c => expectedAncestorIds.Contains(c.Id));
         }
 
-        public void Dispose() => dbContext.Dispose();
+        [Fact]
+        public void ThrowsOnNonStoredEntity()
+        {
+            Action nullEntity = () => repository.QueryAncestors(null!);
+            nullEntity.Should().Throw<ArgumentNullException>();
+            
+            Action nonStored = () => repository.QueryAncestors(new Category());
+            nonStored.Should().Throw<InvalidOperationException>();
+        }
     }
 }

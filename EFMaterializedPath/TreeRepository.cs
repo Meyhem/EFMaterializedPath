@@ -35,7 +35,7 @@ namespace EFMaterializedPath
 
         public IQueryable<TEntity> QueryAncestors(TEntity entity)
         {
-            if (entity == null) throw new ArgumentNullException(nameof(entity));
+            AssertIsStoredEntity(entity);
 
             var path = ParsePath(entity.Path);
             
@@ -49,7 +49,7 @@ namespace EFMaterializedPath
 
         public IQueryable<TEntity> QueryDescendants(TEntity entity)
         {
-            if (entity == null) throw new ArgumentNullException(nameof(entity));
+            AssertIsStoredEntity(entity);
 
             var descendantPathPrefix = FormatPath(ParsePath(entity.Path).Append(entity.Id));
 
@@ -58,7 +58,7 @@ namespace EFMaterializedPath
 
         public IQueryable<TEntity> QueryChildren(TEntity entity)
         {
-            if (entity == null) throw new ArgumentNullException(nameof(entity));
+            AssertIsStoredEntity(entity);
 
             var childrenPath = FormatPath(ParsePath(entity.Path).Append(entity.Id));
 
@@ -67,7 +67,7 @@ namespace EFMaterializedPath
 
         public async Task<IEnumerable<TEntity>> GetPathFromRootAsync(TEntity entity)
         {
-            if (entity == null) throw new ArgumentNullException(nameof(entity));
+            AssertIsStoredEntity(entity);
 
             var path = ParsePath(entity.Path);
 
@@ -79,6 +79,8 @@ namespace EFMaterializedPath
 
         public async Task<TEntity?> GetParentAsync(TEntity entity)
         {
+            AssertIsStoredEntity(entity);
+            
             if (entity.ParentId == null)
             {
                 return null;
@@ -89,12 +91,12 @@ namespace EFMaterializedPath
 
         public async Task SetParentAsync(TEntity entity, IMaterializedPathEntity? parent)
         {
-            if (entity == null) throw new ArgumentNullException(nameof(entity));
+            AssertIsStoredEntity(entity);
 
-            if (parent is not null && parent.Id == 0)
-                throw new InvalidOperationException(
-                    $"{nameof(parent)} has {nameof(IMaterializedPathEntity.Id)}==0. " +
-                    "Entity must be saved first before it can be used as parent");
+            if (parent is not null)
+            {
+                AssertIsStoredEntity(parent!);
+            }
 
             var path = ParsePath(parent?.Path);
 
@@ -122,7 +124,7 @@ namespace EFMaterializedPath
 
         public async Task DetachNodeAsync(TEntity entity)
         {
-            if (entity == null) throw new ArgumentNullException(nameof(entity));
+            AssertIsStoredEntity(entity);
 
             var children = QueryChildren(entity);
             var parent = await GetParentAsync(entity);
@@ -137,12 +139,21 @@ namespace EFMaterializedPath
 
         public async Task RemoveNodeAsync(TEntity entity)
         {
+            AssertIsStoredEntity(entity);
+            
             await DetachNodeAsync(entity);
             
             dbContext.Set<TEntity>().Remove(entity);
             await dbContext.SaveChangesAsync();
         }
 
+        private static void AssertIsStoredEntity(IMaterializedPathEntity entity)
+        {
+            if (entity == null) throw new ArgumentNullException(nameof(entity));
+            if (entity.Id == 0)
+                throw new InvalidOperationException($"{nameof(entity)} does not have valid Id. Save this entity first.");
+        }
+        
         private static string FormatPath(IEnumerable<int> path)
         {
             var joined = string.Join("|", path);

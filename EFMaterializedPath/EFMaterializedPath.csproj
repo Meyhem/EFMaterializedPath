@@ -12,9 +12,9 @@
         <RepositoryType>GIT</RepositoryType>
         <PackageTags>entityframework materialize path tree</PackageTags>
         <Company>Meyhem</Company>
-        <AssemblyVersion>1.0.3.0</AssemblyVersion>
+        <AssemblyVersion>1.0.4.0</AssemblyVersion>
         <Copyright>Meyhem</Copyright>
-        <PackageVersion>1.0.3</PackageVersion>
+        <PackageVersion>1.0.4</PackageVersion>
         <IsPackable>true</IsPackable>
     </PropertyGroup>
 

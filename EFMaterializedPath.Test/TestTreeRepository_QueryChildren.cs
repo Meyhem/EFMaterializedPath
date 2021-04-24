@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using EFMaterializedPath.Test.TestUtils;
 using FluentAssertions;
 using Xunit;
@@ -54,6 +55,16 @@ namespace EFMaterializedPath.Test
             var children = repository.QueryChildren(root);
 
             children.Should().BeEmpty();
+        }
+        
+        [Fact]
+        public void ThrowsOnNonStoredEntity()
+        {
+            Action nullEntity = () => repository.QueryChildren(null!);
+            nullEntity.Should().Throw<ArgumentNullException>();
+            
+            Action nonStored = () => repository.QueryChildren(new Category());
+            nonStored.Should().Throw<InvalidOperationException>();
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using System.Threading.Tasks;
 using EFMaterializedPath.Test.TestUtils;
 using FluentAssertions;
@@ -64,6 +65,16 @@ namespace EFMaterializedPath.Test
             seven.Level.Should().Be(0);
             seven.ParentId.Should().BeNull();
             seven.Path.Should().BeEmpty();
+        }
+
+        [Fact]
+        public void ThrowsOnNonStoredEntity()
+        {
+            Func<Task> nullEntity = async () => await repository.DetachNodeAsync(null!);
+            nullEntity.Should().Throw<ArgumentNullException>();
+            
+            Func<Task> nonStored = async () => await repository.DetachNodeAsync(new Category());
+            nonStored.Should().Throw<InvalidOperationException>();
         }
     }
 }
