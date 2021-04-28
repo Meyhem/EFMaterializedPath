@@ -344,7 +344,7 @@ Deletes node from the tree. Children are parented to parent of deleted node.
     7
 
     var nodeTwo = dbContext.Categories.FindAsync(2);
-    await repository.DetachNodeAsync(nodeTwo);
+    await repository.DeleteNodeAsync(nodeTwo);
     // Will produce following tree
     ┌─────┬──1──┬─────┐     
     │     │     │     │
