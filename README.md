@@ -16,6 +16,7 @@ A simple repository library that provides easy way how to store tree hierarchies
 * * [QueryRoots](#queryroots)
 * * [QueryAncestors](#queryancestors)
 * * [QueryDescendants](#querydescendants)
+* * [QuerySiblings](#querysiblings)
 * * [QueryChildren](#querychildren)
 * [ITreeRepository WRITE API](#itreerepository-write-api)
 * * [SetParentAsync](#setparentasync)
@@ -207,6 +208,24 @@ Get all nodes which have queries node as ancestor
     var node = dbContext.Categories.FindAsync(2);
     var descendantsOfTwo = await repository.QueryDescendants(node).ToListAsync();
     // will yield nodes 5, 6, 9, 10, 7
+```
+
+### QuerySiblings
+Gets all sibling nodes (self is not included)
+```c#
+        ┌───────1───────┐   
+        │       │       │
+    ┌───2───┐   3       4
+    │       │           │
+    5       6           8
+    │       │
+    9       10
+    │
+    7
+    
+    var node = dbContext.Categories.FindAsync(2);
+    var childrenOfOne = await repository.QuerySiblings(node).ToListAsync();
+    // will yield nodes 3,4
 ```
 
 ### QueryChildren

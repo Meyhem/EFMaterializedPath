@@ -65,6 +65,14 @@ namespace EFMaterializedPath
             return dbContext.Set<TEntity>().Where(e => e.Path == childrenPath);
         }
 
+        public IQueryable<TEntity> QuerySiblings(TEntity entity)
+        {
+            AssertIsStoredEntity(entity);
+            var siblingPath = FormatPath(ParsePath(entity.Path));
+            
+            return dbContext.Set<TEntity>().Where(e => e.Path == siblingPath && e.Id != entity.Id);
+        }
+
         public async Task<IEnumerable<TEntity>> GetPathFromRootAsync(TEntity entity)
         {
             AssertIsStoredEntity(entity);

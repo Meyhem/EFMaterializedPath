@@ -47,6 +47,13 @@ namespace EFMaterializedPath
         IQueryable<TEntity> QueryDescendants(TEntity entity);
         
         /// <summary>
+        /// Queries all nodes that are children of <see cref="entity"/>'s parent except self
+        /// </summary>
+        /// <param name="entity">Entity to get siblings of</param>
+        /// <returns>Unordered <see cref="IQueryable&lt;TEntity&gt;"/> of sibling nodes</returns>
+        IQueryable<TEntity> QuerySiblings(TEntity entity);
+        
+        /// <summary>
         /// Queries all direct children nodes of <paramref name="entity"/>.
         /// </summary>
         /// <param name="entity">Entity to get children of</param>
@@ -106,5 +113,7 @@ namespace EFMaterializedPath
         /// </remarks>
         /// <param name="entity">Entity to delete from tree</param>
         Task RemoveNodeAsync(TEntity entity);
+
+        
     }
 }
