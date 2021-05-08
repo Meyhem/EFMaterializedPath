@@ -22,14 +22,12 @@ A simple repository library that provides easy way how to store tree hierarchies
 * * [SetParentAsync](#setparentasync)
 * * [DetachNodeAsync](#detachnodeasync)
 * * [DeleteNodeAsync](#deletenodeasync)
-
-
+* [Identifier types](#identifier-types) 
 
 ## Considerations
 There are multiple approaches to storing hierarchical data in SQL tables, each having pros/cons.
 Materialized path is viable in case you have hierarchy that is ofter read, but rarely written. 
 E.g. product catalogue, categories...
-
 
 It's not possible to ensure referential integrity by SQL constraints, and it's
 solely dependent on correct usage of TreeRepository. In case of manual tampering
@@ -37,10 +35,14 @@ with IMaterializedPathEntity properties outside TreeRepository, it's likely you 
 end up with inconsistent tree. Therefore always rely on using TreeRepository when
 changing tree hierarchy. 
 
+To ensure consistency, TreeRepository often saves underlying context when manipulating
+tree hierarchy. To be able to contain these saves as an atomic operation along with your DB updates
+**use transactions**.
+
 ## Usage
 ### 1. Create entity implementing IMaterializedPathEntity
 ```c#
-public class Category : IMaterializedPathEntity
+public class Category : IMaterializedPathEntity<int>
 {
     /* Props from IMaterializedPathEntity */
     public int Id { get; set; }
@@ -50,7 +52,6 @@ public class Category : IMaterializedPathEntity
     
     /* Custom props */
     public string Name { get; set; }
-    public string  { get; set; }
 }
 ```
 
@@ -77,11 +78,16 @@ public void ConfigureServices(IServiceCollection services)
     services.AddDbContext<MyDbContext>();
     // This registers ITreeRepository<Category> for you to use
     services.AddTreeRepository<MyDbContext, Category>();
+    // This adds support for default identifier types (int, string, Guid)
+    services.AddDefaultIdentifierSerializers();
 }
 ```
 **or** create your own instance
 ```c#
-var repo = new TreeRepository<MyDbContext, Category>(myDbContextInstance);
+var repo = new TreeRepository<MyDbContext, Category>(
+    myDbContextInstance, 
+    new IntIdentifierSerializer()
+);
 ```
 
 ## ITreeRepository READ API
@@ -353,4 +359,28 @@ Deletes node from the tree. Children are parented to parent of deleted node.
     9     10          8
     │         
     7        
+```
+
+## Identifier types
+This package supports various types used as primary key, including possibility
+to add your own. Only condition is it must be struct. It's necessary for the 
+library to be able to serialize/deserialize the identifier types to be used
+in path strings.
+Package ships support for int, string & Guid by using AddDefaultIdentifierSerializers()
+on your ServiceCollection. 
+
+If you need to support your own identifier type, all you need to do is implement
+simple interface IIdentifierSerializer<TId> & register it in container.
+
+This is sample implementation of "int" type serializer.
+```c#
+public class IntIdentifierSerializer: IIdentifierSerializer<int>
+{
+    public string SerializeIdentifier(int id) => id.ToString();
+    public int DeserializeIdentifier(string id) => int.Parse(id);
+}
+// ...
+// And register via
+services.AddTransient<IIdentifierSerializer<int>, IntIdentifierSerializer>();
+
 ```
