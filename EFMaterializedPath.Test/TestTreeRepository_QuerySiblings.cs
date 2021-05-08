@@ -11,12 +11,12 @@ namespace EFMaterializedPath.Test
     public class TestTreeRepository_QuerySiblings
     {
         private readonly TestDbContext dbContext;
-        private readonly TreeRepository<TestDbContext, Category> repository;
+        private readonly TreeRepository<TestDbContext, Category, int> repository;
 
         public TestTreeRepository_QuerySiblings()
         {
             dbContext = TestHelpers.CreateTestDb();
-            repository = new TreeRepository<TestDbContext, Category>(dbContext);
+            repository = new TreeRepository<TestDbContext, Category, int>(dbContext, new IntIdentifierSerializer());
 
             TestHelpers.CreateTestCategoryTree(dbContext, repository);
 
@@ -43,7 +43,7 @@ namespace EFMaterializedPath.Test
         public async Task TestOnIntermediateNode()
         {
             var root = await dbContext.Categories.FindAsync(2);
-            var siblings = repository.QuerySiblings(root);
+            var siblings = repository.QuerySiblings(root).ToList();
 
             siblings.Should().HaveCount(2);
             siblings.Select(s => s.Id).Should().BeEquivalentTo(3, 4);

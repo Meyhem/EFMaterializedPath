@@ -9,12 +9,12 @@ namespace EFMaterializedPath.Test
     // ReSharper disable once InconsistentNaming
     public class TestTreeRepository_GetByIdAsync
     {
-        private readonly TreeRepository<TestDbContext, Category> repository;
+        private readonly TreeRepository<TestDbContext, Category, int> repository;
 
         public TestTreeRepository_GetByIdAsync()
         {
             var dbContext = TestHelpers.CreateTestDb();
-            repository = new TreeRepository<TestDbContext, Category>(dbContext);
+            repository = new TreeRepository<TestDbContext, Category, int>(dbContext, new IntIdentifierSerializer());
 
             TestHelpers.CreateTestCategoryTree(dbContext, repository);
 

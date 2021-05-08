@@ -6,10 +6,13 @@ using EFMaterializedPath.Entity;
 namespace EFMaterializedPath
 {
     /// <summary>
-    /// Tree repository for manipulation with <see cref="IMaterializedPathEntity"/>
+    /// Tree repository for manipulation with <see cref="IMaterializedPathEntity{TId}"/>
     /// </summary>
-    /// <typeparam name="TEntity">Entity implementing <see cref="IMaterializedPathEntity"/></typeparam>
-    public interface ITreeRepository<TEntity> where TEntity : class, IMaterializedPathEntity
+    /// <typeparam name="TEntity">Entity implementing <see cref="IMaterializedPathEntity{TId}"/></typeparam>
+    /// <typeparam name="TId">Type of primary identifier</typeparam>
+    public interface ITreeRepository<TEntity, TId> 
+        where TEntity : class, IMaterializedPathEntity<TId>
+        where TId : struct
     {
         /// <summary>
         /// Queries all root nodes
@@ -88,7 +91,7 @@ namespace EFMaterializedPath
         /// </remarks>
         /// <param name="entity">Entity to set parent of</param>
         /// <param name="parent">Parent entity or null</param>
-        Task SetParentAsync(TEntity entity, IMaterializedPathEntity? parent);
+        Task SetParentAsync(TEntity entity, IMaterializedPathEntity<TId>? parent);
 
         /// <summary>
         /// Detaches <paramref name="entity"/> from subtree, removing it from path of descendants. This makes the node

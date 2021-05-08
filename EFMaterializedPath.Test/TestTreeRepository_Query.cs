@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using System.Threading.Tasks;
 using EFMaterializedPath.Test.TestUtils;
 using FluentAssertions;
@@ -10,12 +11,12 @@ namespace EFMaterializedPath.Test
     // ReSharper disable once InconsistentNaming
     public class TestTreeRepository_Query
     {
-        private readonly TreeRepository<TestDbContext, Category> repository;
+        private readonly TreeRepository<TestDbContext, Category, int> repository;
 
         public TestTreeRepository_Query()
         {
             var dbContext = TestHelpers.CreateTestDb();
-            repository = new TreeRepository<TestDbContext, Category>(dbContext);
+            repository = new TreeRepository<TestDbContext, Category, int>(dbContext, new IntIdentifierSerializer());
 
             TestHelpers.CreateTestCategoryTree(dbContext, repository);
 
@@ -34,11 +35,11 @@ namespace EFMaterializedPath.Test
         public void Query()
         {
             var roots = repository.Query()
-                .Where(c => c.Id > 2 && c.Id < 5)
+                .Where(c => c.Id > 3 && c.Id < 5)
                 .Select(r => r.Id);
 
-            roots.Should().HaveCount(2);
-            roots.Should().OnlyContain(item => item > 2 && item < 5);
+            roots.Should().HaveCount(1);
+            roots.Should().OnlyContain(item => item > 3 && item < 5);
         }
     }
 }

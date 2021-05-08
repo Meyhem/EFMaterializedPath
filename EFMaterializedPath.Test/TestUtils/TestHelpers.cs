@@ -14,10 +14,11 @@ namespace EFMaterializedPath.Test.TestUtils
         }
 
         public static void CreateTestCategoryTree(TestDbContext dbContext,
-            TreeRepository<TestDbContext, Category> repository)
+            TreeRepository<TestDbContext, Category, int> repository)
         {
+            
             var cats = Enumerable.Range(1, 10)
-                .Select(i => new Category {Id = i})
+                .Select(i => new Category { Id = i })
                 .ToList();
 
             dbContext.AddRange(cats);

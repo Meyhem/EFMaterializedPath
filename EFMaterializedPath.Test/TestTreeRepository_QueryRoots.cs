@@ -10,12 +10,12 @@ namespace EFMaterializedPath.Test
     public class TestTreeRepository_QueryRoots
     {
         private readonly TestDbContext dbContext;
-        private readonly TreeRepository<TestDbContext, Category> repository;
+        private readonly TreeRepository<TestDbContext, Category, int> repository;
 
         public TestTreeRepository_QueryRoots()
         {
             dbContext = TestHelpers.CreateTestDb();
-            repository = new TreeRepository<TestDbContext, Category>(dbContext);
+            repository = new TreeRepository<TestDbContext, Category, int>(dbContext, new IntIdentifierSerializer());
 
             TestHelpers.CreateTestCategoryTree(dbContext, repository);
             dbContext.Categories.Add(new Category {Id = 11});

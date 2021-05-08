@@ -7,15 +7,18 @@ using Microsoft.EntityFrameworkCore;
 
 namespace EFMaterializedPath
 {
-    public class TreeRepository<TDbContext, TEntity> : ITreeRepository<TEntity>
-        where TEntity : class, IMaterializedPathEntity
+    public class TreeRepository<TDbContext, TEntity, TId> : ITreeRepository<TEntity, TId>
+        where TEntity : class, IMaterializedPathEntity<TId>
         where TDbContext : DbContext
+        where TId : struct
     {
         private readonly TDbContext dbContext;
+        private readonly IIdentifierSerializer<TId> identifierSerializer;
 
-        public TreeRepository(TDbContext dbContext)
+        public TreeRepository(TDbContext dbContext, IIdentifierSerializer<TId> identifierSerializer)
         {
             this.dbContext = dbContext;
+            this.identifierSerializer = identifierSerializer;
         }
 
         public IQueryable<TEntity> QueryRoots()
@@ -70,7 +73,8 @@ namespace EFMaterializedPath
             AssertIsStoredEntity(entity);
             var siblingPath = FormatPath(ParsePath(entity.Path));
             
-            return dbContext.Set<TEntity>().Where(e => e.Path == siblingPath && e.Id != entity.Id);
+            return dbContext.Set<TEntity>()
+                .Where(e => e.Path == siblingPath && !e.Id.Equals(entity.Id));
         }
 
         public async Task<IEnumerable<TEntity>> GetPathFromRootAsync(TEntity entity)
@@ -97,7 +101,7 @@ namespace EFMaterializedPath
             return await dbContext.Set<TEntity>().FindAsync(entity.ParentId);
         }
 
-        public async Task SetParentAsync(TEntity entity, IMaterializedPathEntity? parent)
+        public async Task SetParentAsync(TEntity entity, IMaterializedPathEntity<TId>? parent)
         {
             AssertIsStoredEntity(entity);
 
@@ -125,6 +129,7 @@ namespace EFMaterializedPath
 
             entity.Level = path.Count;
             entity.Path = newPath;
+
             entity.ParentId = parent?.Id;
 
             await dbContext.SaveChangesAsync();
@@ -155,16 +160,19 @@ namespace EFMaterializedPath
             await dbContext.SaveChangesAsync();
         }
 
-        private static void AssertIsStoredEntity(IMaterializedPathEntity entity)
+        private static void AssertIsStoredEntity(IMaterializedPathEntity<TId> entity)
         {
             if (entity == null) throw new ArgumentNullException(nameof(entity));
-            if (entity.Id == 0)
+            if (entity.Id.Equals(default(TId)))
                 throw new InvalidOperationException($"{nameof(entity)} does not have valid Id. Save this entity first.");
         }
         
-        private static string FormatPath(IEnumerable<int> path)
+        private string FormatPath(IEnumerable<TId> path)
         {
-            var joined = string.Join("|", path);
+            var joined = string.Join(
+                "|", 
+                path.Select(item => 
+                    identifierSerializer.SerializeIdentifier(item)));
 
             if (joined.Length > 0)
             {
@@ -174,13 +182,12 @@ namespace EFMaterializedPath
             return joined;
         }
 
-        private static List<int> ParsePath(string? path)
+        private List<TId> ParsePath(string? path)
         {
-            return path switch
-            {
-                null => new List<int>(),
-                _ => path.Split('|', StringSplitOptions.RemoveEmptyEntries).Select(int.Parse).ToList()
-            };
+            if (string.IsNullOrEmpty(path)) return new List<TId>();
+            
+            var split = path.Split('|', StringSplitOptions.RemoveEmptyEntries);
+            return split.Select(item => identifierSerializer.DeserializeIdentifier(item)).ToList();
         }
     }
 }
