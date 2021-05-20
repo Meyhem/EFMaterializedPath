@@ -31,7 +31,7 @@ namespace EFMaterializedPath
         /// </summary>
         /// <param name="id">Id of node to retrieve</param>
         /// <returns><see cref="TEntity"/> or null</returns>
-        Task<TEntity> GetByIdAsync(int id);
+        Task<TEntity> GetByIdAsync(TId id);
 
         /// <summary>
         /// Queries all ancestor nodes of current node. If you need to preserve order from to to bottom,
