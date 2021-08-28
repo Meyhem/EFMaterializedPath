@@ -46,7 +46,7 @@ namespace EFMaterializedPath.Test
             var siblings = repository.QuerySiblings(root).ToList();
 
             siblings.Should().HaveCount(2);
-            siblings.Select(s => s.Id).Should().BeEquivalentTo(3, 4);
+            siblings.Select(s => s.Id).Should().BeEquivalentTo(new int[] { 3, 4 });
         }
         
         [Fact]

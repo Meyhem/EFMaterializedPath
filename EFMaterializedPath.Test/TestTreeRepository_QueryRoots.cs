@@ -36,7 +36,7 @@ namespace EFMaterializedPath.Test
         public void QueryRoots()
         {
             var roots = repository.QueryRoots().Select(r => r.Id);
-            roots.Should().BeEquivalentTo(1, 11);
+            roots.Should().BeEquivalentTo(new int[] { 1, 11 });
         }
     }
 }

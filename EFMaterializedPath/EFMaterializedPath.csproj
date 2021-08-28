@@ -12,15 +12,17 @@
         <RepositoryType>GIT</RepositoryType>
         <PackageTags>entityframework materialize path tree</PackageTags>
         <Company>Meyhem</Company>
-        <AssemblyVersion>1.0.7.0</AssemblyVersion>
+        <AssemblyVersion>1.0.8.0</AssemblyVersion>
         <Copyright>Meyhem</Copyright>
-        <PackageVersion>1.0.7</PackageVersion>
         <IsPackable>true</IsPackable>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <FileVersion>1.0.8.0</FileVersion>
+        <Version>1.0.8</Version>
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Microsoft.EntityFrameworkCore" Version="5.0.5" />
-      <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="5.0.5" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore" Version="5.0.9" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="5.0.9" />
     </ItemGroup>
 
 </Project>

@@ -23,6 +23,7 @@ A simple repository library that provides easy way how to store tree hierarchies
 * * [DetachNodeAsync](#detachnodeasync)
 * * [DeleteNodeAsync](#deletenodeasync)
 * [Identifier types](#identifier-types) 
+* [Changelog](#changelog)
 
 ## Considerations
 There are multiple approaches to storing hierarchical data in SQL tables, each having pros/cons.
@@ -382,5 +383,13 @@ public class IntIdentifierSerializer: IIdentifierSerializer<int>
 // ...
 // And register via
 services.AddTransient<IIdentifierSerializer<int>, IntIdentifierSerializer>();
+```
 
+## Changelog
+### 1.0.8 (28.08.2021)
+Dependency version bump
+``` 
+Microsoft.EntityFrameworkCore 5.0.5 -> 5.0.9
+Microsoft.EntityFrameworkCore.Relational 5.0.5 -> 5.0.9
+FluentAssertions 5.10.3 -> 6.1.0
 ```

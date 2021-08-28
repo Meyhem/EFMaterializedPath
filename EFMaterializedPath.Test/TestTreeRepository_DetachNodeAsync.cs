@@ -40,7 +40,7 @@ namespace EFMaterializedPath.Test
 
             var newRoots = dbContext.Categories.Where(p => p.ParentId == null);
             // check if children has been made root
-            newRoots.Select(r => r.Id).Should().BeEquivalentTo(1, 2, 3, 4);
+            newRoots.Select(r => r.Id).Should().BeEquivalentTo(new int[] { 1, 2, 3, 4 });
             
             var two = await dbContext.Categories.FindAsync(2);
             two.Level.Should().Be(0);
@@ -68,13 +68,13 @@ namespace EFMaterializedPath.Test
         }
 
         [Fact]
-        public void ThrowsOnNonStoredEntity()
+        public async Task ThrowsOnNonStoredEntity()
         {
             Func<Task> nullEntity = async () => await repository.DetachNodeAsync(null!);
-            nullEntity.Should().Throw<ArgumentNullException>();
+            await nullEntity.Should().ThrowAsync<ArgumentNullException>();
             
             Func<Task> nonStored = async () => await repository.DetachNodeAsync(new Category());
-            nonStored.Should().Throw<InvalidOperationException>();
+            await nonStored.Should().ThrowAsync<InvalidOperationException>();
         }
     }
 }

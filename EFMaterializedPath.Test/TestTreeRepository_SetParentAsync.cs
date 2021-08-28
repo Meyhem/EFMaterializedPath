@@ -88,17 +88,17 @@ namespace EFMaterializedPath.Test
         }
 
         [Fact]
-        public void ThrowsOnNonStoredEntity()
+        public async Task ThrowsOnNonStoredEntity()
         {
             Func<Task> nullEntity = async () => await repository.SetParentAsync(null!, null);
-            nullEntity.Should().Throw<ArgumentNullException>();
+            await nullEntity.Should().ThrowAsync<ArgumentNullException>();
 
             Func<Task> nonStored = async () => await repository.SetParentAsync(new Category(), null);
-            nonStored.Should().Throw<InvalidOperationException>();
+            await nonStored.Should().ThrowAsync<InvalidOperationException>();
 
             Func<Task> nonStoredParent = async () =>
                 await repository.SetParentAsync(new Category() {Id = 1}, new Category());
-            nonStoredParent.Should().Throw<InvalidOperationException>();
+            await nonStoredParent.Should().ThrowAsync<InvalidOperationException>();
         }
     }
 }
