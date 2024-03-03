@@ -1,62 +1,34 @@
-﻿using System;
-using System.Linq;
-using System.Threading.Tasks;
-using EFMaterializedPath.Test.TestUtils;
-using FluentAssertions;
-using Xunit;
+﻿using EFMaterializedPath.Test.TestUtils;
 
-namespace EFMaterializedPath.Test
+namespace EFMaterializedPath.Test;
+
+public class TestTreeRepository_GetPathFromRootAsync : TreeRepositoryTestBase
 {
-    // ReSharper disable once InconsistentNaming
-    public class TestTreeRepository_GetPathFromRootAsync
+    [Fact]
+    public async Task GetPathFromRootOnRoot()
     {
-        private readonly TestDbContext dbContext;
-        private readonly TreeRepository<TestDbContext, Category, int> repository;
+        var root = await DbContext.Categories.FindAsync(1);
 
-        public TestTreeRepository_GetPathFromRootAsync()
-        {
-            dbContext = TestHelpers.CreateTestDb();
-            repository = new TreeRepository<TestDbContext, Category, int>(dbContext, new IntIdentifierSerializer());
-            
-            TestHelpers.CreateTestCategoryTree(dbContext, repository);
+        (await Repository.GetPathFromRootAsync(root)).Should().BeEmpty();
+    }
 
-            //         ┌───────1───────┐   
-            //         │       │       │ 
-            //     ┌───2───┐   3       4
-            //     │       │           │
-            //     5       6           8
-            //     │       │ 
-            //     9       10
-            //     │
-            //     7
-        }
+    [Fact]
+    public async Task GetPathFromRootOnDeepNode()
+    {
+        var seven = await DbContext.Categories.FindAsync(7);
+        var path = (await Repository.GetPathFromRootAsync(seven)).ToArray();
 
-        [Fact]
-        public async Task GetPathFromRootOnRoot()
-        {
-            var root = await dbContext.Categories.FindAsync(1);
-            
-            (await repository.GetPathFromRootAsync(root)).Should().BeEmpty();
-        }
-        
-        [Fact]
-        public async Task GetPathFromRootOnDeepNode()
-        {
-            var seven = await dbContext.Categories.FindAsync(7);
-            var path = (await repository.GetPathFromRootAsync(seven)).ToArray();
+        path.Should().HaveCount(4);
+        path.Select(p => p.Id).Should().Equal(1, 2, 5, 9);
+    }
 
-            path.Should().HaveCount(4);
-            path.Select(p => p.Id).Should().Equal(1, 2, 5, 9);
-        }
-        
-        [Fact]
-        public async Task ThrowsOnNonStoredEntity()
-        {
-            Func<Task> nullEntity = async () => await repository.GetPathFromRootAsync(null!);
-            await nullEntity.Should().ThrowAsync<ArgumentNullException>();
-            
-            Func<Task> nonStored = async () => await repository.GetPathFromRootAsync(new Category());
-            await nonStored.Should().ThrowAsync<InvalidOperationException>();
-        }
+    [Fact]
+    public async Task ThrowsOnNonStoredEntity()
+    {
+        Func<Task> nullEntity = async () => await Repository.GetPathFromRootAsync(null!);
+        await nullEntity.Should().ThrowAsync<ArgumentNullException>();
+
+        Func<Task> nonStored = async () => await Repository.GetPathFromRootAsync(new Category());
+        await nonStored.Should().ThrowAsync<InvalidOperationException>();
     }
 }

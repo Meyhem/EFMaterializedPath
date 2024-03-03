@@ -1,59 +1,30 @@
-﻿using System;
-using System.Linq;
-using System.Threading.Tasks;
-using EFMaterializedPath.Test.TestUtils;
-using FluentAssertions;
-using Xunit;
+﻿using EFMaterializedPath.Test.TestUtils;
 
-namespace EFMaterializedPath.Test
+namespace EFMaterializedPath.Test;
+
+public class TestTreeRepository_GetParentAsync : TreeRepositoryTestBase
 {
-    // ReSharper disable once InconsistentNaming
-    public class TestTreeRepository_GetParentAsync
+    [Fact]
+    public async Task GetParentOnRoot()
     {
-        private readonly TestDbContext dbContext;
-        private readonly TreeRepository<TestDbContext, Category, int> repository;
+        var root = await DbContext.Categories.FindAsync(1);
+        (await Repository.GetParentAsync(root)).Should().BeNull();
+    }
 
-        public TestTreeRepository_GetParentAsync()
-        {
-            dbContext = TestHelpers.CreateTestDb();
-            repository = new TreeRepository<TestDbContext, Category, int>(dbContext, new IntIdentifierSerializer());
-            
-            TestHelpers.CreateTestCategoryTree(dbContext, repository);
+    [Fact]
+    public async Task GetParentIntermediateNode()
+    {
+        var five = await DbContext.Categories.FindAsync(5);
+        (await Repository.GetParentAsync(five))!.Id.Should().Be(2);
+    }
 
-            //         ┌───────1───────┐   
-            //         │       │       │ 
-            //     ┌───2───┐   3       4
-            //     │       │           │
-            //     5       6           8
-            //     │       │ 
-            //     9       10
-            //     │
-            //     7
-        }
+    [Fact]
+    public async Task ThrowsOnNonStoredEntity()
+    {
+        Func<Task> nullEntity = async () => await Repository.GetParentAsync(null!);
+        await nullEntity.Should().ThrowAsync<ArgumentNullException>();
 
-        [Fact]
-        public async Task GetParentOnRoot()
-        {
-            var root = await dbContext.Categories.FindAsync(1);
-            (await repository.GetParentAsync(root)).Should().BeNull();
-        }
-        
-        [Fact]
-        public async Task GetParentIntermediateNode()
-        {
-            var five = await dbContext.Categories.FindAsync(5);
-            (await repository.GetParentAsync(five))!.Id.Should().Be(2);
-        }
-
-        [Fact]
-        public async Task ThrowsOnNonStoredEntity()
-        {
-            Func<Task> nullEntity = async () => await repository.GetParentAsync(null!);
-            await nullEntity.Should().ThrowAsync<ArgumentNullException>();
-            
-            Func<Task> nonStored = async () => await repository.GetParentAsync(new Category());
-            await nonStored.Should().ThrowAsync<InvalidOperationException>();
-        }
-
+        Func<Task> nonStored = async () => await Repository.GetParentAsync(new Category());
+        await nonStored.Should().ThrowAsync<InvalidOperationException>();
     }
 }

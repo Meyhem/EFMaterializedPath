@@ -1,80 +1,52 @@
-﻿using System;
-using System.Linq;
-using System.Threading.Tasks;
-using EFMaterializedPath.Test.TestUtils;
-using FluentAssertions;
-using Xunit;
+﻿using EFMaterializedPath.Test.TestUtils;
 
-namespace EFMaterializedPath.Test
+namespace EFMaterializedPath.Test;
+
+public class TestTreeRepository_DetachNodeAsync : TreeRepositoryTestBase
 {
-    // ReSharper disable once InconsistentNaming
-    public class TestTreeRepository_DetachNodeAsync
+    [Fact]
+    public async Task DetachRoot()
     {
-        private readonly TestDbContext dbContext;
-        private readonly TreeRepository<TestDbContext, Category, int> repository;
+        // detach node
+        var root = await DbContext.Categories.FindAsync(1);
+        await Repository.DetachNodeAsync(root);
 
-        public TestTreeRepository_DetachNodeAsync()
-        {
-            dbContext = TestHelpers.CreateTestDb();
-            repository = new TreeRepository<TestDbContext, Category, int>(dbContext, new IntIdentifierSerializer());
+        var newRoots = DbContext.Categories.Where(p => p.ParentId == null);
+        // check if children has been made root
+        newRoots.Select(r => r.Id).Should().BeEquivalentTo(new int[] {1, 2, 3, 4});
 
-            TestHelpers.CreateTestCategoryTree(dbContext, repository);
+        var two = await DbContext.Categories.FindAsync(2);
+        two.Level.Should().Be(0);
+        two.ParentId.Should().BeNull();
+        two.Path.Should().BeEmpty();
 
-            //         ┌───────1───────┐   
-            //         │       │       │ 
-            //     ┌───2───┐   3       4
-            //     │       │           │
-            //     5       6           8
-            //     │       │ 
-            //     9       10
-            //     │
-            //     7
-        }
+        // check of descendant paths has been updated
+        var five = await DbContext.Categories.FindAsync(5);
+        five.Level.Should().Be(1);
+        five.ParentId.Should().Be(2);
+        five.Path.Should().Be("|2|");
+    }
 
-        [Fact]
-        public async Task DetachRoot()
-        {
-            // detach node
-            var root = await dbContext.Categories.FindAsync(1);
-            await repository.DetachNodeAsync(root);
+    [Fact]
+    public async Task DetachLeaf()
+    {
+        var seven = await DbContext.Categories.FindAsync(7);
 
-            var newRoots = dbContext.Categories.Where(p => p.ParentId == null);
-            // check if children has been made root
-            newRoots.Select(r => r.Id).Should().BeEquivalentTo(new int[] { 1, 2, 3, 4 });
-            
-            var two = await dbContext.Categories.FindAsync(2);
-            two.Level.Should().Be(0);
-            two.ParentId.Should().BeNull();
-            two.Path.Should().BeEmpty();
-            
-            // check of descendant paths has been updated
-            var five = await dbContext.Categories.FindAsync(5);
-            five.Level.Should().Be(1);
-            five.ParentId.Should().Be(2);
-            five.Path.Should().Be("|2|");
-        }
-        
-        [Fact]
-        public async Task DetachLeaf()
-        {
-            var seven = await dbContext.Categories.FindAsync(7);
-            
-            await repository.DetachNodeAsync(seven);
-            
-            seven = await dbContext.Categories.FindAsync(7);
-            seven.Level.Should().Be(0);
-            seven.ParentId.Should().BeNull();
-            seven.Path.Should().BeEmpty();
-        }
+        await Repository.DetachNodeAsync(seven);
 
-        [Fact]
-        public async Task ThrowsOnNonStoredEntity()
-        {
-            Func<Task> nullEntity = async () => await repository.DetachNodeAsync(null!);
-            await nullEntity.Should().ThrowAsync<ArgumentNullException>();
-            
-            Func<Task> nonStored = async () => await repository.DetachNodeAsync(new Category());
-            await nonStored.Should().ThrowAsync<InvalidOperationException>();
-        }
+        seven = await DbContext.Categories.FindAsync(7);
+        seven.Level.Should().Be(0);
+        seven.ParentId.Should().BeNull();
+        seven.Path.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ThrowsOnNonStoredEntity()
+    {
+        Func<Task> nullEntity = async () => await Repository.DetachNodeAsync(null!);
+        await nullEntity.Should().ThrowAsync<ArgumentNullException>();
+
+        Func<Task> nonStored = async () => await Repository.DetachNodeAsync(new Category());
+        await nonStored.Should().ThrowAsync<InvalidOperationException>();
     }
 }

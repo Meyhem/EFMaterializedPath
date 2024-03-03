@@ -1,104 +1,77 @@
-﻿using System;
-using System.Threading.Tasks;
-using EFMaterializedPath.Test.TestUtils;
-using FluentAssertions;
-using Xunit;
+﻿using EFMaterializedPath.Test.TestUtils;
 
-namespace EFMaterializedPath.Test
+namespace EFMaterializedPath.Test;
+
+public class TestTreeRepository_SetParentAsync : TreeRepositoryTestBase
 {
-    // ReSharper disable once InconsistentNaming
-    public class TestTreeRepository_SetParentAsync
+    [Fact]
+    public async Task SetParentUpdatesDescendants()
     {
-        private readonly TestDbContext dbContext;
-        private readonly TreeRepository<TestDbContext, Category, int> repository;
+        var five = await DbContext.Set<Category>().FindAsync(5);
+        var four = await DbContext.Set<Category>().FindAsync(4);
 
-        public TestTreeRepository_SetParentAsync()
-        {
-            dbContext = TestHelpers.CreateTestDb();
-            repository = new TreeRepository<TestDbContext, Category, int>(dbContext, new IntIdentifierSerializer());
+        await Repository.SetParentAsync(five, four);
+        await DbContext.SaveChangesAsync();
 
-            TestHelpers.CreateTestCategoryTree(dbContext, repository);
+        five.ParentId.Should().Be(4);
+        five.Level.Should().Be(2);
+        five.Path.Should().Be("|1|4|");
 
-            //         ┌───────1───────┐   
-            //         │       │       │ 
-            //     ┌───2───┐   3       4
-            //     │       │           │
-            //     5       6           8
-            //     │       │ 
-            //     9       10
-            //     │
-            //     7
-        }
+        var nine = await DbContext.Set<Category>().FindAsync(9);
+        nine.Path.Should().Be("|1|4|5|");
 
-        [Fact]
-        public async Task SetParentUpdatesDescendants()
-        {
-            var five = await dbContext.Set<Category>().FindAsync(5);
-            var four = await dbContext.Set<Category>().FindAsync(4);
+        var seven = await DbContext.Set<Category>().FindAsync(7);
+        seven.Path.Should().Be("|1|4|5|9|");
+    }
 
-            await repository.SetParentAsync(five, four);
-            await dbContext.SaveChangesAsync();
+    [Fact]
+    public async Task SetParentNull()
+    {
+        var five = await DbContext.Set<Category>().FindAsync(5);
 
-            five.ParentId.Should().Be(4);
-            five.Level.Should().Be(2);
-            five.Path.Should().Be("|1|4|");
+        await Repository.SetParentAsync(five, null);
+        await DbContext.SaveChangesAsync();
 
-            var nine = await dbContext.Set<Category>().FindAsync(9);
-            nine.Path.Should().Be("|1|4|5|");
+        five.ParentId.Should().BeNull();
+        five.Level.Should().Be(0);
+        five.Path.Should().Be("");
 
-            var seven = await dbContext.Set<Category>().FindAsync(7);
-            seven.Path.Should().Be("|1|4|5|9|");
-        }
+        var nine = await DbContext.Set<Category>().FindAsync(9);
+        nine.Path.Should().Be("|5|");
 
-        [Fact]
-        public async Task SetParentNull()
-        {
-            var five = await dbContext.Set<Category>().FindAsync(5);
+        var seven = await DbContext.Set<Category>().FindAsync(7);
+        seven.Path.Should().Be("|5|9|");
+    }
 
-            await repository.SetParentAsync(five, null);
-            await dbContext.SaveChangesAsync();
+    [Fact]
+    public async Task SetParentOnInterleavedSubtrees()
+    {
+        var two = await DbContext.Set<Category>().FindAsync(2);
+        var five = await DbContext.Set<Category>().FindAsync(5);
+        var nine = await DbContext.Set<Category>().FindAsync(9);
+        var four = await DbContext.Set<Category>().FindAsync(4);
 
-            five.ParentId.Should().BeNull();
-            five.Level.Should().Be(0);
-            five.Path.Should().Be("");
+        await Repository.SetParentAsync(two, null);
+        two.Path.Should().Be("");
+        five.Path.Should().Be("|2|");
+        nine.Path.Should().Be("|2|5|");
 
-            var nine = await dbContext.Set<Category>().FindAsync(9);
-            nine.Path.Should().Be("|5|");
+        await Repository.SetParentAsync(five, four);
+        five.Path.Should().Be("|1|4|");
+        nine.Path.Should().Be("|1|4|5|");
+    }
 
-            var seven = await dbContext.Set<Category>().FindAsync(7);
-            seven.Path.Should().Be("|5|9|");
-        }
+    [Fact]
+    public async Task ThrowsOnNonStoredEntity()
+    {
+        Func<Task> nullEntity = async () => await Repository.SetParentAsync(null!, null);
+        await nullEntity.Should().ThrowAsync<ArgumentNullException>();
 
-        [Fact]
-        public async Task SetParentOnInterleavedSubtrees()
-        {
-            var two = await dbContext.Set<Category>().FindAsync(2);
-            var five = await dbContext.Set<Category>().FindAsync(5);
-            var nine = await dbContext.Set<Category>().FindAsync(9);
-            var four = await dbContext.Set<Category>().FindAsync(4);
+        Func<Task> nonStored = async () => await Repository.SetParentAsync(new Category(), null);
+        await nonStored.Should().ThrowAsync<InvalidOperationException>();
 
-            await repository.SetParentAsync(two, null);
-            two.Path.Should().Be("");
-            five.Path.Should().Be("|2|");
-            nine.Path.Should().Be("|2|5|");
-
-            await repository.SetParentAsync(five, four);
-            five.Path.Should().Be("|1|4|");
-            nine.Path.Should().Be("|1|4|5|");
-        }
-
-        [Fact]
-        public async Task ThrowsOnNonStoredEntity()
-        {
-            Func<Task> nullEntity = async () => await repository.SetParentAsync(null!, null);
-            await nullEntity.Should().ThrowAsync<ArgumentNullException>();
-
-            Func<Task> nonStored = async () => await repository.SetParentAsync(new Category(), null);
-            await nonStored.Should().ThrowAsync<InvalidOperationException>();
-
-            Func<Task> nonStoredParent = async () =>
-                await repository.SetParentAsync(new Category() {Id = 1}, new Category());
-            await nonStoredParent.Should().ThrowAsync<InvalidOperationException>();
-        }
+        Func<Task> nonStoredParent = async () =>
+            await Repository.SetParentAsync(new Category() {Id = 1}, new Category());
+        await nonStoredParent.Should().ThrowAsync<InvalidOperationException>();
     }
 }

@@ -1,62 +1,34 @@
-﻿using System;
-using System.Linq;
-using System.Threading.Tasks;
-using EFMaterializedPath.Test.TestUtils;
-using FluentAssertions;
-using Xunit;
+﻿using EFMaterializedPath.Test.TestUtils;
 
-namespace EFMaterializedPath.Test
+namespace EFMaterializedPath.Test;
+
+public class TestTreeRepository_QuerySiblings : TreeRepositoryTestBase
 {
-    // ReSharper disable once InconsistentNaming
-    public class TestTreeRepository_QuerySiblings
+    [Fact]
+    public async Task TestOnRootNode()
     {
-        private readonly TestDbContext dbContext;
-        private readonly TreeRepository<TestDbContext, Category, int> repository;
+        var root = await DbContext.Categories.FindAsync(1);
+        var siblings = Repository.QuerySiblings(root);
+        siblings.Should().BeEmpty();
+    }
 
-        public TestTreeRepository_QuerySiblings()
-        {
-            dbContext = TestHelpers.CreateTestDb();
-            repository = new TreeRepository<TestDbContext, Category, int>(dbContext, new IntIdentifierSerializer());
+    [Fact]
+    public async Task TestOnIntermediateNode()
+    {
+        var root = await DbContext.Categories.FindAsync(2);
+        var siblings = Repository.QuerySiblings(root).ToList();
 
-            TestHelpers.CreateTestCategoryTree(dbContext, repository);
+        siblings.Should().HaveCount(2);
+        siblings.Select(s => s.Id).Should().BeEquivalentTo(new int[] {3, 4});
+    }
 
-            //         ┌───────1───────┐   
-            //         │       │       │ 
-            //     ┌───2───┐   3       4
-            //     │       │           │
-            //     5       6           8
-            //     │       │ 
-            //     9       10
-            //     │
-            //     7
-        }
+    [Fact]
+    public void ThrowsOnNonStoredEntity()
+    {
+        Action nullEntity = () => Repository.QuerySiblings(null!);
+        nullEntity.Should().Throw<ArgumentNullException>();
 
-        [Fact]
-        public async Task TestOnRootNode()
-        {
-            var root = await dbContext.Categories.FindAsync(1);
-            var siblings = repository.QuerySiblings(root);
-            siblings.Should().BeEmpty();
-        }
-
-        [Fact]
-        public async Task TestOnIntermediateNode()
-        {
-            var root = await dbContext.Categories.FindAsync(2);
-            var siblings = repository.QuerySiblings(root).ToList();
-
-            siblings.Should().HaveCount(2);
-            siblings.Select(s => s.Id).Should().BeEquivalentTo(new int[] { 3, 4 });
-        }
-        
-        [Fact]
-        public void ThrowsOnNonStoredEntity()
-        {
-            Action nullEntity = () => repository.QuerySiblings(null!);
-            nullEntity.Should().Throw<ArgumentNullException>();
-            
-            Action nonStored = () => repository.QuerySiblings(new Category());
-            nonStored.Should().Throw<InvalidOperationException>();
-        }
+        Action nonStored = () => Repository.QuerySiblings(new Category());
+        nonStored.Should().Throw<InvalidOperationException>();
     }
 }

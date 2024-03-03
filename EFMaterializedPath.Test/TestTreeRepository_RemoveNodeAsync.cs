@@ -1,60 +1,32 @@
-﻿using System;
-using System.Linq;
-using System.Threading.Tasks;
-using EFMaterializedPath.Test.TestUtils;
-using FluentAssertions;
-using Xunit;
+﻿using EFMaterializedPath.Test.TestUtils;
 
-namespace EFMaterializedPath.Test
+namespace EFMaterializedPath.Test;
+
+public class TestTreeRepository_RemoveNodeAsync : TreeRepositoryTestBase
 {
-    // ReSharper disable once InconsistentNaming
-    public class TestTreeRepository_RemoveNodeAsync
+    [Fact]
+    public async Task DeleteNode()
     {
-        private readonly TestDbContext dbContext;
-        private readonly TreeRepository<TestDbContext, Category, int> repository;
+        var two = await DbContext.Categories.FindAsync(2);
+        await Repository.RemoveNodeAsync(two);
 
-        public TestTreeRepository_RemoveNodeAsync()
-        {
-            dbContext = TestHelpers.CreateTestDb();
-            repository = new TreeRepository<TestDbContext, Category, int>(dbContext, new IntIdentifierSerializer());
+        two = await DbContext.Categories.FindAsync(2);
+        two.Should().BeNull();
 
-            TestHelpers.CreateTestCategoryTree(dbContext, repository);
+        var five = await DbContext.Categories.FindAsync(5);
+        five.ParentId.Should().Be(1);
 
-            //         ┌───────1───────┐   
-            //         │       │       │ 
-            //     ┌───2───┐   3       4
-            //     │       │           │
-            //     5       6           8
-            //     │       │ 
-            //     9       10
-            //     │
-            //     7
-        }
+        var six = await DbContext.Categories.FindAsync(6);
+        six.ParentId.Should().Be(1);
+    }
 
-        [Fact]
-        public async Task DeleteNode()
-        {
-            var two = await dbContext.Categories.FindAsync(2);
-            await repository.RemoveNodeAsync(two);
-            
-            two = await dbContext.Categories.FindAsync(2);
-            two.Should().BeNull();
-            
-            var five = await dbContext.Categories.FindAsync(5);
-            five.ParentId.Should().Be(1);
-            
-            var six = await dbContext.Categories.FindAsync(6);
-            six.ParentId.Should().Be(1);
-        }
-        
-        [Fact]
-        public async Task ThrowsOnNonStoredEntity()
-        {
-            Func<Task> nullEntity = async () => await repository.RemoveNodeAsync(null!);
-            await nullEntity.Should().ThrowAsync<ArgumentNullException>();
-            
-            Func<Task> nonStored = async () => await repository.RemoveNodeAsync(new Category());
-            await nonStored.Should().ThrowAsync<InvalidOperationException>();
-        }
+    [Fact]
+    public async Task ThrowsOnNonStoredEntity()
+    {
+        Func<Task> nullEntity = async () => await Repository.RemoveNodeAsync(null!);
+        await nullEntity.Should().ThrowAsync<ArgumentNullException>();
+
+        Func<Task> nonStored = async () => await Repository.RemoveNodeAsync(new Category());
+        await nonStored.Should().ThrowAsync<InvalidOperationException>();
     }
 }

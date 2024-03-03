@@ -1,42 +1,20 @@
-﻿using System.Linq;
-using System.Threading.Tasks;
-using EFMaterializedPath.Test.TestUtils;
-using FluentAssertions;
-using Xunit;
+﻿using EFMaterializedPath.Test.TestUtils;
 
-namespace EFMaterializedPath.Test
+namespace EFMaterializedPath.Test;
+
+public class TestTreeRepository_QueryRoots : TreeRepositoryTestBase
 {
-    // ReSharper disable once InconsistentNaming
-    public class TestTreeRepository_QueryRoots
+    public override async Task InitializeAsync()
     {
-        private readonly TestDbContext dbContext;
-        private readonly TreeRepository<TestDbContext, Category, int> repository;
+        await base.InitializeAsync();
+        DbContext.Categories.Add(new Category {Id = 11});
+        await DbContext.SaveChangesAsync();
+    }
 
-        public TestTreeRepository_QueryRoots()
-        {
-            dbContext = TestHelpers.CreateTestDb();
-            repository = new TreeRepository<TestDbContext, Category, int>(dbContext, new IntIdentifierSerializer());
-
-            TestHelpers.CreateTestCategoryTree(dbContext, repository);
-            dbContext.Categories.Add(new Category {Id = 11});
-            dbContext.SaveChanges();
-
-            //         ┌───────1───────┬──────11
-            //         │       │       │ 
-            //     ┌───2───┐   3       4
-            //     │       │           │
-            //     5       6           8
-            //     │       │ 
-            //     9       10
-            //     │
-            //     7
-        }
-
-        [Fact]
-        public void QueryRoots()
-        {
-            var roots = repository.QueryRoots().Select(r => r.Id);
-            roots.Should().BeEquivalentTo(new int[] { 1, 11 });
-        }
+    [Fact]
+    public void QueryRoots()
+    {
+        var roots = Repository.QueryRoots().Select(r => r.Id);
+        roots.Should().BeEquivalentTo(new int[] {1, 11});
     }
 }
