@@ -441,6 +441,10 @@ dotnet test --filter "Category!=Docker"   # InMemory and SQLite only
 
 ## Changelog
 ### Unreleased
+**Breaking:** `Query()` and `QueryRoots()` now return `IQueryable<TEntity>` instead of `IQueryable<TEntity?>`; rows
+were never null. Already compiled code keeps working, since only nullability annotations changed. Remove `!` or `?`
+you added to work around it; classes implementing `ITreeRepository` must change these two signatures.
+
 Fixed `DetachNodeAsync` and `RemoveNodeAsync` throwing on PostgreSQL and SQL Server (`A command is already in
 progress` / `There is already an open DataReader`) when the node has children. Affects every user of those providers;
 SQLite and InMemory were not affected. No API or schema changes.

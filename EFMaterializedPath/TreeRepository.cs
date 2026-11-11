@@ -21,12 +21,12 @@ public class TreeRepository<TDbContext, TEntity, TId>(
                                       $"Failed to retrieve DbSet for {typeof(TEntity).FullName}"
                                   );
 
-    public IQueryable<TEntity?> QueryRoots()
+    public IQueryable<TEntity> QueryRoots()
     {
         return Set.Where(ent => ent.ParentId == null);
     }
 
-    public IQueryable<TEntity?> Query()
+    public IQueryable<TEntity> Query()
     {
         return Set;
     }

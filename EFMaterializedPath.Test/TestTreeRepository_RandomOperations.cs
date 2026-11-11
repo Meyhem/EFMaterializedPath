@@ -167,7 +167,7 @@ public class TestTreeRepository_RandomOperations : TreeRepositoryTestBase
         (await Repository.GetPathFromRootAsync(node)).Select(c => c.Id)
             .Should().Equal(ancestors, because);
         (await Repository.GetParentAsync(node))?.Id.Should().Be(model[id], because);
-        (await Repository.QueryRoots().Select(c => c!.Id).ToListAsync())
+        (await Repository.QueryRoots().Select(c => c.Id).ToListAsync())
             .Should().BeEquivalentTo(model.Where(kv => kv.Value is null).Select(kv => kv.Key));
     }
 

@@ -18,13 +18,13 @@ public interface ITreeRepository<TEntity, TId>
     /// Queries all root nodes
     /// </summary>
     /// <returns><see cref="IQueryable&lt;TEntity&gt;"/> of all roots</returns>
-    IQueryable<TEntity?> QueryRoots();
+    IQueryable<TEntity> QueryRoots();
 
     /// <summary>
     /// Arbitrary query over DbSet.
     /// </summary>
-    /// <returns></returns>
-    IQueryable<TEntity?> Query();
+    /// <returns>Unordered <see cref="IQueryable&lt;TEntity&gt;"/> of all nodes</returns>
+    IQueryable<TEntity> Query();
 
     /// <summary>
     /// Get single node by its primary key
