@@ -139,7 +139,9 @@ public class TreeRepository<TDbContext, TEntity, TId>(
     {
         AssertIsStoredEntity(entity);
 
-        var children = QueryChildren(entity);
+        // Materialize first: SetParentAsync queries and saves, which providers without multiple active result sets
+        // (PostgreSQL, SQL Server) reject while the children query is still streaming.
+        var children = await QueryChildren(entity).ToListAsync();
         var parent = await GetParentAsync(entity);
 
         foreach (var child in children)

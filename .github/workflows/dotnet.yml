@@ -21,5 +21,23 @@ jobs:
       run: dotnet restore
     - name: Build
       run: dotnet build --no-restore
-    - name: Test
-      run: dotnet test --no-build --verbosity normal
+    - name: Test (InMemory + SQLite)
+      run: dotnet test --no-build --verbosity normal --filter "Category!=Docker"
+
+  integration:
+
+    # PostgreSQL and SQL Server via Testcontainers; needs the Docker engine of the Linux runners.
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v7
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: 10.0.x
+    - name: Restore dependencies
+      run: dotnet restore
+    - name: Build
+      run: dotnet build --no-restore
+    - name: Test (PostgreSQL + SQL Server)
+      run: dotnet test EFMaterializedPath.IntegrationTest --no-build --verbosity normal --filter "Category=Docker"

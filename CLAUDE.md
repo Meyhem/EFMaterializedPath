@@ -40,14 +40,21 @@ Other people's code depends on it, so treat every change as a change to a publis
 
 ```bash
 dotnet build      # must be 0 warnings; also produces the .nupkg (GeneratePackageOnBuild)
-dotnet test       # xUnit v2 + EF Core InMemory
+dotnet test                               # everything; needs Docker running
+dotnet test --filter "Category!=Docker"   # InMemory + SQLite only, no Docker needed
 ```
 
-CI: `.github/workflows/dotnet.yml` (restore, build, test on push/PR to `master`).
+- `EFMaterializedPath.Test`: unit tests on EF Core InMemory (xUnit v2).
+- `EFMaterializedPath.IntegrationTest`: re-runs every unit test class on SQLite (in-process), PostgreSQL and
+  SQL Server (Testcontainers), plus relational-only checks in `Checks/`. A new `TestTreeRepository_*` class needs
+  a one-line subclass in each `Suites/*Suite.cs`; Postgres/SQL Server classes carry `Trait("Category", "Docker")`.
+
+CI: `.github/workflows/dotnet.yml` on push/PR to `master`: job `build` (build + `Category!=Docker` tests) and job
+`integration` (`Category=Docker` tests against containers).
 
 ## Dependency constraints
 
 - FluentAssertions must stay on 7.x (7.2.2): 8.x has a paid commercial licence.
-- Tests use the InMemory provider only; changes to LINQ in `TreeRepository` that could translate differently on
-  relational providers deserve a manual check against SQLite.
+- InMemory is lenient (no SQL translation, no open-reader limits, ignores database defaults); changes to LINQ or
+  query enumeration in `TreeRepository` must pass the integration tests, not just the unit tests.
 - Publishing to nuget.org is done manually by the maintainer, never by an agent.

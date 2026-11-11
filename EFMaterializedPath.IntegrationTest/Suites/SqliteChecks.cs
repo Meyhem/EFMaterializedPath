@@ -1,0 +1,20 @@
+using EFMaterializedPath.IntegrationTest.Checks;
+using EFMaterializedPath.IntegrationTest.Databases;
+
+// Relational-only checks against Sqlite.
+namespace EFMaterializedPath.IntegrationTest.Suites;
+
+public class Sqlite_SchemaChecks : SchemaChecks
+{
+    protected override IRelationalTestDatabase Database => SqliteTestDatabase.Instance;
+}
+
+public class Sqlite_PathChecks : PathChecks
+{
+    protected override IRelationalTestDatabase Database => SqliteTestDatabase.Instance;
+}
+
+public class Sqlite_GuidIdChecks : GuidIdChecks
+{
+    protected override IRelationalTestDatabase Database => SqliteTestDatabase.Instance;
+}

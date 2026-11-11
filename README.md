@@ -24,6 +24,7 @@ A simple repository library that provides easy way how to store tree hierarchies
 * * [DetachNodeAsync](#detachnodeasync)
 * * [RemoveNodeAsync](#removenodeasync)
 * [Identifier types](#identifier-types) 
+* [Running tests](#running-tests)
 * [Changelog](#changelog)
 
 ## Installation
@@ -400,7 +401,22 @@ public class IntIdentifierSerializer: IIdentifierSerializer<int>
 services.AddTransient<IIdentifierSerializer<int>, IntIdentifierSerializer>();
 ```
 
+## Running tests
+The test suite runs on EF Core InMemory and SQLite, and in Docker containers on PostgreSQL and SQL Server.
+```
+dotnet test                               # all databases, requires Docker
+dotnet test --filter "Category!=Docker"   # InMemory and SQLite only
+```
+
 ## Changelog
+### Unreleased
+Fixed `DetachNodeAsync` and `RemoveNodeAsync` throwing on PostgreSQL and SQL Server (`A command is already in
+progress` / `There is already an open DataReader`) when the node has children. Affects every user of those providers;
+SQLite and InMemory were not affected. No API or schema changes.
+```
+No framework or dependency changes
+```
+
 ### 10.0.15 (11.11.2026)
 Upgraded to .NET 10. Requires .NET 10 and EF Core 10; projects on .NET 8 should stay on 8.0.2.
 ```
