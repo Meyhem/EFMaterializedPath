@@ -53,7 +53,38 @@ changing tree hierarchy.
 
 To ensure consistency, TreeRepository often saves underlying context when manipulating
 tree hierarchy. To be able to contain these saves as an atomic operation along with your DB updates
-**use transactions**.
+**use transactions**. Without one, `DetachNodeAsync` and `RemoveNodeAsync` are not atomic: they save once per
+child, so a failure half way leaves a valid tree with only some of the children moved.
+
+TreeRepository trusts the `Path` of the entities you pass in and has no concurrency check. If another context or
+process changed the tree after you loaded an entity, using that outdated entity as the node or the parent of a write
+operation stores wrong paths. Load (or reload) the entities in the same context, and ideally the same transaction,
+right before changing the tree.
+
+### Database limits
+These follow from the schema `MaterializedEntityMapping` creates (an indexed `Path` column) and from how each
+database compares text. They are covered by the integration tests.
+
+| | SQL Server | PostgreSQL | SQLite |
+|---|---|---|---|
+| `Path` column type | `nvarchar(450)` | `text` | `TEXT` |
+| Longest path | 450 characters | about 2700 bytes (btree index entry limit) | no limit |
+| Deepest level with `Guid` ids (37 characters per level) | 12 | 72 | no limit |
+| `QueryDescendants` uses the `Path` index | yes | no, full table scan | no, full table scan |
+| `QueryChildren` / `QuerySiblings` use the `Path` index | yes | yes | yes |
+
+* **Depth.** A path holds one serialized id per ancestor, so the depth limit depends on how long your ids are:
+  with `int` ids below 1 000 000 SQL Server allows about 64 levels. Moving a node deeper than the limit fails with
+  `DbUpdateException` and stores nothing. On SQL Server the 450 comes from EF Core's default size for indexed
+  string columns.
+* **Descendant queries on PostgreSQL** scan the table unless the database or the `Path` column uses the `"C"`
+  collation (`builder.Property(e => e.Path).UseCollation("C")`), or you add an index with `text_pattern_ops`:
+  `CREATE INDEX ... ON "Categories" ("Path" text_pattern_ops)`.
+* **Descendant queries on SQLite** scan the table unless you add an index with `COLLATE NOCASE` on `Path`, or run
+  `PRAGMA case_sensitive_like = ON` on the connection.
+* **Custom identifier serializers** must not produce `|`, and two ids must not serialize to texts that differ only
+  by letter case: SQL Server (default collation) and SQLite (`LIKE`) compare paths ignoring case and would mix the
+  two subtrees up. The built-in `int` and `Guid` serializers are safe. `%`, `_`, `[` and `\` are safe.
 
 ## Usage
 ### 1. Create entity implementing IMaterializedPathEntity
@@ -413,6 +444,24 @@ dotnet test --filter "Category!=Docker"   # InMemory and SQLite only
 Fixed `DetachNodeAsync` and `RemoveNodeAsync` throwing on PostgreSQL and SQL Server (`A command is already in
 progress` / `There is already an open DataReader`) when the node has children. Affects every user of those providers;
 SQLite and InMemory were not affected. No API or schema changes.
+
+Fixed `SetParentAsync` throwing `ArgumentException` when moving a root node that has descendants under another node.
+
+Fixed `QueryAncestors` on a root node returning an in-memory queryable, which threw on `ToListAsync()`, `CountAsync()`
+and other async operators. It now returns an empty database query (one extra round trip when enumerated).
+
+Behaviour changes, all providers:
+* `SetParentAsync` now throws `InvalidOperationException` when the new parent is the entity itself or one of its
+  descendants. Previously the cycle was stored and corrupted the tree. Code that relied on this never had a valid
+  tree; no migration needed, but existing data created this way has to be repaired manually.
+* `SetParentAsync`, `DetachNodeAsync` and `RemoveNodeAsync` now persist the change when the entity passed in is not
+  tracked by the context (e.g. loaded with `AsNoTracking()` or by another context). Previously the descendants were
+  updated but the entity itself was not, leaving an inconsistent tree. The entity is attached to the context as a
+  side effect; if the context already tracks another instance of the same row, both instances are updated.
+
+Documented the per-database limits (maximum tree depth, index use of descendant queries, rules for custom identifier
+serializers) under [Database limits](#database-limits), and the behaviour on partial failure and with outdated
+entities under [Considerations](#considerations). No change in behaviour.
 ```
 No framework or dependency changes
 ```

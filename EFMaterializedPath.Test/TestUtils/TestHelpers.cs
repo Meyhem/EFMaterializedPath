@@ -1,15 +1,16 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace EFMaterializedPath.Test.TestUtils;
 
 public static class TestHelpers
 {
-    public static TestDbContext CreateTestDb()
+    public static TestDbContext CreateTestDb(params IInterceptor[] interceptors)
     {
         var builder = new DbContextOptionsBuilder<TestDbContext>().UseInMemoryDatabase(
             databaseName: Guid.NewGuid().ToString()
         );
-        return new TestDbContext(builder.Options);
+        return new TestDbContext(builder.AddInterceptors(interceptors).Options);
     }
 
     public static async Task CreateTestCategoryTree(

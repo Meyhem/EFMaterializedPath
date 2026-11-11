@@ -1,3 +1,4 @@
+﻿using Microsoft.EntityFrameworkCore;
 using EFMaterializedPath.Test.TestUtils;
 
 namespace EFMaterializedPath.Test;
@@ -12,6 +13,18 @@ public class TestTreeRepository_QueryAncestors : TreeRepositoryTestBase
         var ancestors = Repository.QueryAncestors(root);
 
         ancestors.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task RootNodeCanBeEnumeratedAsynchronously()
+    {
+        var root = await DbContext.Categories.FindAsync(1);
+
+        var ancestors = await Repository.QueryAncestors(root).ToListAsync();
+        var count = await Repository.QueryAncestors(root).CountAsync();
+
+        ancestors.Should().BeEmpty();
+        count.Should().Be(0);
     }
 
     [Fact]

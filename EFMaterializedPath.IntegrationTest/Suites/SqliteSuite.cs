@@ -64,3 +64,8 @@ public class Sqlite_SetParentAsync : TestTreeRepository_SetParentAsync
 {
     protected override ITestDatabase Database => SqliteTestDatabase.Instance;
 }
+
+public class Sqlite_RandomOperations : TestTreeRepository_RandomOperations
+{
+    protected override ITestDatabase Database => SqliteTestDatabase.Instance;
+}

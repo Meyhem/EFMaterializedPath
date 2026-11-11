@@ -1,6 +1,7 @@
 using EFMaterializedPath.Test.TestUtils;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace EFMaterializedPath.IntegrationTest.Databases;
 
@@ -18,16 +19,49 @@ public sealed class SqliteTestDatabase : IRelationalTestDatabase
         WHERE m.type = 'index' AND m.tbl_name = 'Categories'
         """;
 
-    public async Task<TestDbContext> CreateContextAsync()
+    public string PathColumnType => "TEXT";
+    public int? MaxGuidTreeDepth => null;
+
+    // SQLite's LIKE ignores ASCII case, "=" does not.
+    public bool PrefixMatchIgnoresCase => true;
+    public bool EqualityIgnoresCase => false;
+
+    // A case-insensitive LIKE cannot use the default (BINARY) index.
+    public bool DescendantsQueryUsesPathIndex => false;
+
+    public async Task<string> ExplainAsync(TestDbContext context, IQueryable<Category> query)
+    {
+        await context.Database.ExecuteSqlRawAsync("ANALYZE");
+        await context.Database.OpenConnectionAsync();
+        await using var command = query.CreateDbCommand();
+        command.CommandText = "EXPLAIN QUERY PLAN " + command.CommandText;
+
+        var plan = new System.Text.StringBuilder();
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            plan.AppendLine(reader.GetValue(reader.FieldCount - 1).ToString());
+        }
+
+        return plan.ToString();
+    }
+
+    public async Task<TestDbContext> CreateContextAsync(params IInterceptor[] interceptors)
     {
         var connection = new SqliteConnection("DataSource=:memory:");
         await connection.OpenAsync();
 
-        var options = new DbContextOptionsBuilder<TestDbContext>().UseSqlite(connection).Options;
+        var options = new DbContextOptionsBuilder<TestDbContext>().UseSqlite(connection)
+            .AddInterceptors(interceptors).Options;
         var context = new TestDbContext(options);
         await context.Database.EnsureCreatedAsync();
         return context;
     }
+
+    public bool SupportsParallelConnections => false;
+
+    public TestDbContext CreateSecondContext(TestDbContext first) =>
+        new(new DbContextOptionsBuilder<TestDbContext>().UseSqlite(first.Database.GetDbConnection()).Options);
 
     public async Task DropAsync(TestDbContext context)
     {

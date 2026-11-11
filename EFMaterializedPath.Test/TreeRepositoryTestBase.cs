@@ -30,8 +30,16 @@ public class TreeRepositoryTestBase : IAsyncLifetime
         //     7
     }
 
-    public virtual Task DisposeAsync()
+    public virtual async Task DisposeAsync()
     {
-        return Database.DropAsync(DbContext);
+        try
+        {
+            // Whatever a test did, it must leave a consistent tree behind.
+            await TreeInvariants.AssertValidAsync(DbContext);
+        }
+        finally
+        {
+            await Database.DropAsync(DbContext);
+        }
     }
 }

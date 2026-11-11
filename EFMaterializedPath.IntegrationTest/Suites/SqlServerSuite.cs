@@ -76,3 +76,9 @@ public class SqlServer_SetParentAsync(SqlServerFixture db) : TestTreeRepository_
 {
     protected override ITestDatabase Database => db;
 }
+
+[Collection(SqlServerCollection.Name), Trait(Traits.Category, Traits.Docker)]
+public class SqlServer_RandomOperations(SqlServerFixture db) : TestTreeRepository_RandomOperations
+{
+    protected override ITestDatabase Database => db;
+}

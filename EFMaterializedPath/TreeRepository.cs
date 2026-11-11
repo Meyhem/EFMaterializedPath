@@ -44,7 +44,8 @@ public class TreeRepository<TDbContext, TEntity, TId>(
 
         if (path.Count == 0)
         {
-            return Enumerable.Empty<TEntity>().AsQueryable();
+            // Still an EF query (not Enumerable.Empty), so async operators and Include keep working on roots.
+            return Set.Where(e => false);
         }
 
         return Set.Where(e => path.Contains(e.Id));
@@ -114,23 +115,42 @@ public class TreeRepository<TDbContext, TEntity, TId>(
 
         if (parent is not null)
         {
+            if (parent.Id.Equals(entity.Id))
+            {
+                throw new InvalidOperationException("Entity cannot be its own parent.");
+            }
+
+            if (path.Contains(entity.Id))
+            {
+                throw new InvalidOperationException(
+                    "Entity cannot be moved under one of its own descendants."
+                );
+            }
+
             path.Add(parent.Id);
         }
 
-        var oldPath = entity.Path;
+        // The entity's own changes are only saved if the context tracks it. An untracked entity is attached, or,
+        // if the context already tracks another instance of the same row, that instance is updated as well.
+        var tracked = TrackedInstanceOf(entity);
+
+        var oldPathLength = ParsePath(entity.Path).Count;
         var newPath = FormatPath(path);
 
         foreach (var descendant in await QueryDescendants(entity).ToListAsync())
         {
-            var newDescendantPath = ParsePath(descendant.Path.Replace(oldPath, newPath));
+            // Swap the entity's old ancestors for the new ones, keep the rest (entity id and below).
+            var newDescendantPath = path.Concat(ParsePath(descendant.Path).Skip(oldPathLength)).ToList();
             descendant.Path = FormatPath(newDescendantPath);
             descendant.Level = newDescendantPath.Count;
         }
 
-        entity.Level = path.Count;
-        entity.Path = newPath;
-
-        entity.ParentId = parent?.Id;
+        foreach (var target in new[] { entity, tracked }.Distinct())
+        {
+            target.Level = path.Count;
+            target.Path = newPath;
+            target.ParentId = parent?.Id;
+        }
 
         await dbContext.SaveChangesAsync();
     }
@@ -158,8 +178,29 @@ public class TreeRepository<TDbContext, TEntity, TId>(
 
         await DetachNodeAsync(entity);
 
-        Set.Remove(entity);
+        Set.Remove(TrackedInstanceOf(entity));
         await dbContext.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Returns the instance of <paramref name="entity"/>'s row that the context tracks: the entity itself if it is
+    /// tracked, another tracked instance with the same id if there is one, otherwise the entity after attaching it.
+    /// </summary>
+    private TEntity TrackedInstanceOf(TEntity entity)
+    {
+        if (dbContext.Entry(entity).State != EntityState.Detached)
+        {
+            return entity;
+        }
+
+        var trackedEntry = Set.Local.FindEntry(entity.Id);
+        if (trackedEntry is not null)
+        {
+            return trackedEntry.Entity;
+        }
+
+        Set.Attach(entity);
+        return entity;
     }
 
     private static void AssertIsStoredEntity(IMaterializedPathEntity<TId> entity)

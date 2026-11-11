@@ -39,7 +39,10 @@ public interface ITreeRepository<TEntity, TId>
     ///  
     /// </summary>
     /// <param name="entity">Entity to get ancestors of</param>
-    /// <returns>Unordered <see cref="IQueryable&lt;TEntity&gt;"/> of ancestor nodes</returns>
+    /// <returns>
+    /// Unordered <see cref="IQueryable&lt;TEntity&gt;"/> of ancestor nodes, empty for a root node.
+    /// It is always a database query, so it can be composed and enumerated asynchronously.
+    /// </returns>
     IQueryable<TEntity> QueryAncestors(TEntity entity);
 
     /// <summary>
@@ -87,10 +90,17 @@ public interface ITreeRepository<TEntity, TId>
     /// </summary>
     /// <remarks>
     /// Method saves underlying context.
-    /// Method has to update paths of all descendants. This can be performance heavy. 
+    /// Method has to update paths of all descendants. This can be performance heavy.
+    /// If <paramref name="entity"/> is not tracked by the context (e.g. loaded with <c>AsNoTracking</c>), it is
+    /// attached so its new position is saved; if the context already tracks another instance of the same row,
+    /// both instances are updated.
     /// </remarks>
     /// <param name="entity">Entity to set parent of</param>
     /// <param name="parent">Parent entity or null</param>
+    /// <exception cref="System.InvalidOperationException">
+    /// <paramref name="parent"/> is <paramref name="entity"/> itself or one of its descendants (the move would
+    /// create a cycle), or either entity has no id yet.
+    /// </exception>
     Task SetParentAsync(TEntity entity, IMaterializedPathEntity<TId>? parent);
 
     /// <summary>

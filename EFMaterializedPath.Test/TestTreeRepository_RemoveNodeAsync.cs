@@ -1,4 +1,5 @@
-﻿using EFMaterializedPath.Test.TestUtils;
+﻿using Microsoft.EntityFrameworkCore;
+using EFMaterializedPath.Test.TestUtils;
 
 namespace EFMaterializedPath.Test;
 
@@ -18,6 +19,24 @@ public class TestTreeRepository_RemoveNodeAsync : TreeRepositoryTestBase
 
         var six = await DbContext.Categories.FindAsync(6);
         six.ParentId.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task DeleteUntrackedNode()
+    {
+        var two = await DbContext.Categories.AsNoTracking().SingleAsync(c => c.Id == 2);
+
+        await Repository.RemoveNodeAsync(two);
+        DbContext.ChangeTracker.Clear();
+
+        (await DbContext.Categories.AsNoTracking().AnyAsync(c => c.Id == 2)).Should().BeFalse();
+
+        var five = await DbContext.Categories.AsNoTracking().SingleAsync(c => c.Id == 5);
+        five.ParentId.Should().Be(1);
+        five.Path.Should().Be("|1|");
+
+        var seven = await DbContext.Categories.AsNoTracking().SingleAsync(c => c.Id == 7);
+        seven.Path.Should().Be("|1|5|9|");
     }
 
     [Fact]

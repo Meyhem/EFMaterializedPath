@@ -76,3 +76,9 @@ public class Postgres_SetParentAsync(PostgresFixture db) : TestTreeRepository_Se
 {
     protected override ITestDatabase Database => db;
 }
+
+[Collection(PostgresCollection.Name), Trait(Traits.Category, Traits.Docker)]
+public class Postgres_RandomOperations(PostgresFixture db) : TestTreeRepository_RandomOperations
+{
+    protected override ITestDatabase Database => db;
+}

@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore.Diagnostics;
+
 namespace EFMaterializedPath.Test.TestUtils;
 
 /// <summary>
@@ -6,6 +8,6 @@ namespace EFMaterializedPath.Test.TestUtils;
 /// </summary>
 public interface ITestDatabase
 {
-    Task<TestDbContext> CreateContextAsync();
+    Task<TestDbContext> CreateContextAsync(params IInterceptor[] interceptors);
     Task DropAsync(TestDbContext context);
 }
