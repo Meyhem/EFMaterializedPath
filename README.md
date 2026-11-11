@@ -386,6 +386,14 @@ services.AddTransient<IIdentifierSerializer<int>, IntIdentifierSerializer>();
 ```
 
 ## Changelog
+### 10.0.15 (11.11.2026)
+Upgraded to .NET 10. Requires .NET 10 and EF Core 10; projects on .NET 8 should stay on 8.0.2.
+```
+Target framework net8.0 -> net10.0
+Microsoft.EntityFrameworkCore 8.0.2 -> 10.0.15
+Microsoft.EntityFrameworkCore.Relational 8.0.2 -> 10.0.15
+```
+
 ### 1.0.8 (28.08.2021)
 Dependency version bump
 ``` 
