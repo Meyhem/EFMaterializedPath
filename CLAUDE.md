@@ -50,11 +50,14 @@ dotnet test --filter "Category!=Docker"   # InMemory + SQLite only, no Docker ne
   a one-line subclass in each `Suites/*Suite.cs`; Postgres/SQL Server classes carry `Trait("Category", "Docker")`.
 
 CI: `.github/workflows/dotnet.yml` on push/PR to `master`: job `build` (build + `Category!=Docker` tests) and job
-`integration` (`Category=Docker` tests against containers).
+`integration` (`Category=Docker` tests against containers). `.github/workflows/publish.yml` on `v*` tags publishes
+to nuget.org.
 
 ## Dependency constraints
 
 - FluentAssertions must stay on 7.x (7.2.2): 8.x has a paid commercial licence.
 - InMemory is lenient (no SQL translation, no open-reader limits, ignores database defaults); changes to LINQ or
   query enumeration in `TreeRepository` must pass the integration tests, not just the unit tests.
-- Publishing to nuget.org is done manually by the maintainer, never by an agent.
+- Publishing to nuget.org: the maintainer pushes a tag `v<Version>` (e.g. `v10.0.15`), which runs
+  `.github/workflows/publish.yml` (checks tag == csproj `<Version>`, runs all tests, packs, pushes via NuGet trusted
+  publishing). Agents never create or push release tags and never push packages themselves.
