@@ -498,6 +498,10 @@ Added [`IsAncestorOf` and `IsDescendantOf`](#isancestorof--isdescendantof), whic
 other from the loaded paths, without a query. **Breaking** only for classes implementing `ITreeRepository`: they
 must add these members.
 
+Fixed `IntIdentifierSerializer` depending on the current culture: under a culture with a different negative sign,
+negative ids were written and parsed in that culture's form. Only affects negative `int` ids. `GuidIdentifierSerializer`
+now names its format (`"D"`) explicitly; its output is unchanged.
+
 Fixed `DetachNodeAsync` and `RemoveNodeAsync` throwing on PostgreSQL and SQL Server (`A command is already in
 progress` / `There is already an open DataReader`) when the node has children. Affects every user of those providers;
 SQLite and InMemory were not affected. No API or schema changes.
