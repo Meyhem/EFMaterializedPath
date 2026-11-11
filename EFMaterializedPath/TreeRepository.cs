@@ -157,29 +157,53 @@ public class TreeRepository<TDbContext, TEntity, TId>(
 
     public async Task DetachNodeAsync(TEntity entity)
     {
-        AssertIsStoredEntity(entity);
-
-        // Materialize first: SetParentAsync queries and saves, which providers without multiple active result sets
-        // (PostgreSQL, SQL Server) reject while the children query is still streaming.
-        var children = await QueryChildren(entity).ToListAsync();
-        var parent = await GetParentAsync(entity);
-
-        foreach (var child in children)
-        {
-            await SetParentAsync(child, parent);
-        }
-
-        await SetParentAsync(entity, null);
+        await DetachWithoutSavingAsync(entity);
+        await dbContext.SaveChangesAsync();
     }
 
     public async Task RemoveNodeAsync(TEntity entity)
     {
+        var tracked = await DetachWithoutSavingAsync(entity);
+
+        Set.Remove(tracked);
+        await dbContext.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Makes <paramref name="entity"/> a root and removes it from the paths of its descendants, whose children are
+    /// re-parented to its parent. Does not save.
+    /// </summary>
+    /// <returns>The instance of <paramref name="entity"/>'s row that the context tracks.</returns>
+    private async Task<TEntity> DetachWithoutSavingAsync(TEntity entity)
+    {
         AssertIsStoredEntity(entity);
 
-        await DetachNodeAsync(entity);
+        var tracked = TrackedInstanceOf(entity);
 
-        Set.Remove(TrackedInstanceOf(entity));
-        await dbContext.SaveChangesAsync();
+        // The entity's id sits at this index in every descendant's path, right after the entity's own ancestors.
+        var entityIndex = ParsePath(entity.Path).Count;
+
+        foreach (var descendant in await QueryDescendants(entity).ToListAsync())
+        {
+            var path = ParsePath(descendant.Path);
+            path.RemoveAt(entityIndex);
+            descendant.Path = FormatPath(path);
+            descendant.Level = path.Count;
+
+            if (descendant.ParentId.Equals(entity.Id))
+            {
+                descendant.ParentId = entity.ParentId;
+            }
+        }
+
+        foreach (var target in new[] { entity, tracked }.Distinct())
+        {
+            target.Path = "";
+            target.Level = 0;
+            target.ParentId = null;
+        }
+
+        return tracked;
     }
 
     /// <summary>

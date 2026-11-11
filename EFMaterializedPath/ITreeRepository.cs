@@ -109,8 +109,9 @@ public interface ITreeRepository<TEntity, TId>
     /// </summary>
     /// <remarks>
     /// Method does not delete detached node.
-    /// Method saves underlying context.
-    /// Method has to update paths of all descendants. This can be performance heavy. 
+    /// Method saves underlying context once, so the whole detach is stored or, if the save fails, nothing is.
+    /// If <paramref name="entity"/> is not tracked by the context, it is attached so its new position is saved.
+    /// Method has to update paths of all descendants. This can be performance heavy.
     /// </remarks>
     /// <param name="entity">Entity to detach from tree</param>
     Task DetachNodeAsync(TEntity entity);
@@ -121,8 +122,9 @@ public interface ITreeRepository<TEntity, TId>
     /// </summary>
     /// <remarks>
     /// Method deletes whole entity
-    /// Method saves underlying context.
-    /// Method has to update paths of all descendants. This can be performance heavy. 
+    /// Method saves underlying context once: re-parenting the children and deleting the node are stored together,
+    /// or, if the save fails, nothing is.
+    /// Method has to update paths of all descendants. This can be performance heavy.
     /// </remarks>
     /// <param name="entity">Entity to delete from tree</param>
     Task RemoveNodeAsync(TEntity entity);

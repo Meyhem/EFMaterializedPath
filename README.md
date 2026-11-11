@@ -53,8 +53,8 @@ changing tree hierarchy.
 
 To ensure consistency, TreeRepository often saves underlying context when manipulating
 tree hierarchy. To be able to contain these saves as an atomic operation along with your DB updates
-**use transactions**. Without one, `DetachNodeAsync` and `RemoveNodeAsync` are not atomic: they save once per
-child, so a failure half way leaves a valid tree with only some of the children moved.
+**use transactions**. `SetParentAsync`, `DetachNodeAsync` and `RemoveNodeAsync` each save once, so each of them is
+atomic on its own; a transaction is what makes several of them, together with your own changes, atomic as a whole.
 
 TreeRepository trusts the `Path` of the entities you pass in and has no concurrency check. If another context or
 process changed the tree after you loaded an entity, using that outdated entity as the node or the parent of a write
@@ -444,6 +444,12 @@ dotnet test --filter "Category!=Docker"   # InMemory and SQLite only
 **Breaking:** `Query()` and `QueryRoots()` now return `IQueryable<TEntity>` instead of `IQueryable<TEntity?>`; rows
 were never null. Already compiled code keeps working, since only nullability annotations changed. Remove `!` or `?`
 you added to work around it; classes implementing `ITreeRepository` must change these two signatures.
+
+**Breaking (behaviour):** `DetachNodeAsync` and `RemoveNodeAsync` now call `SaveChanges` once. Previously they saved
+once per child, once more for the node and, for `RemoveNodeAsync`, once more for the delete. A failure now leaves the
+tree unchanged instead of partly moved, and large subtrees need one descendants query instead of one per child.
+Affects code that counts saves, e.g. `SaveChanges` interceptors or audit logs expecting one event per child; no
+signature changes.
 
 Fixed `DetachNodeAsync` and `RemoveNodeAsync` throwing on PostgreSQL and SQL Server (`A command is already in
 progress` / `There is already an open DataReader`) when the node has children. Affects every user of those providers;

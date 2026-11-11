@@ -7,8 +7,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 namespace EFMaterializedPath.IntegrationTest.Checks;
 
 /// <summary>
-/// What is left in the database when a multi-step operation (detach and remove save once per child) fails half way,
-/// with and without a surrounding transaction.
+/// What is left in the database when a tree operation's save fails, with and without a surrounding transaction.
 /// </summary>
 public abstract class FailureChecks : RelationalCheckBase
 {
@@ -24,40 +23,42 @@ public abstract class FailureChecks : RelationalCheckBase
     //     6
     private Task<Dictionary<int, Category>> AddTestTreeAsync() => AddTreeAsync((2, 1), (3, 2), (4, 2), (5, 2), (6, 4));
 
-    [Theory]
-    [InlineData(1)]
-    [InlineData(2)]
-    [InlineData(3)]
-    [InlineData(4)]
-    public async Task FailedSaveDuringDetachLeavesConsistentTree(int failingSaveNumber)
+    [Fact]
+    public async Task FailedSaveDuringDetachChangesNothing()
     {
         var nodes = await AddTestTreeAsync();
         var before = await StoredTreeAsync();
 
-        failingSave.FailOnSave(failingSaveNumber);
+        failingSave.FailOnSave(1);
         Func<Task> detach = async () => await Repository.DetachNodeAsync(nodes[2]);
         await detach.Should().ThrowAsync<InjectedFailureException>();
 
-        // Without a transaction the operation is not atomic: the children moved before the failure stay moved. Each
-        // save is still a complete move, so the stored tree is a valid one.
-        var after = await StoredTreeAsync();
-        TreeInvariants.AssertValid(after);
-        after.Count(c => c.ParentId == 1 && c.Id != 2).Should().Be(failingSaveNumber - 1, "one child moves per save");
-        after.Single(c => c.Id == 2).Should().BeEquivalentTo(before.Single(c => c.Id == 2));
+        // Detach saves once, so even without a transaction a failure stores nothing.
+        (await StoredTreeAsync()).Should().BeEquivalentTo(before, o => o.WithStrictOrdering());
     }
 
-    [Theory]
-    [InlineData(1)]
-    [InlineData(3)]
-    [InlineData(5)]
-    public async Task FailedSaveDuringRemoveInsideTransactionRollsBackEverything(int failingSaveNumber)
+    [Fact]
+    public async Task FailedSaveDuringRemoveChangesNothing()
+    {
+        var nodes = await AddTestTreeAsync();
+        var before = await StoredTreeAsync();
+
+        failingSave.FailOnSave(1);
+        Func<Task> remove = async () => await Repository.RemoveNodeAsync(nodes[2]);
+        await remove.Should().ThrowAsync<InjectedFailureException>();
+
+        (await StoredTreeAsync()).Should().BeEquivalentTo(before, o => o.WithStrictOrdering());
+    }
+
+    [Fact]
+    public async Task FailedSaveDuringRemoveInsideTransactionRollsBackEverything()
     {
         var nodes = await AddTestTreeAsync();
         var before = await StoredTreeAsync();
 
         await using (var transaction = await DbContext.Database.BeginTransactionAsync())
         {
-            failingSave.FailOnSave(failingSaveNumber);
+            failingSave.FailOnSave(1);
             Func<Task> remove = async () => await Repository.RemoveNodeAsync(nodes[2]);
             await remove.Should().ThrowAsync<InjectedFailureException>();
             await transaction.RollbackAsync();

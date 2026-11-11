@@ -22,6 +22,17 @@ public class TestTreeRepository_RemoveNodeAsync : TreeRepositoryTestBase
     }
 
     [Fact]
+    public async Task SavesOnce()
+    {
+        var saves = 0;
+        DbContext.SavedChanges += (_, _) => saves++;
+
+        await Repository.RemoveNodeAsync(await DbContext.Categories.FindAsync(2));
+
+        saves.Should().Be(1);
+    }
+
+    [Fact]
     public async Task DeleteUntrackedNode()
     {
         var two = await DbContext.Categories.AsNoTracking().SingleAsync(c => c.Id == 2);
