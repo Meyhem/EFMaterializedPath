@@ -3,7 +3,7 @@
 [![GitHub license](https://img.shields.io/github/license/Meyhem/EFMaterializedPath.svg)](https://github.com/Meyhem/EFMaterializedPath/blob/master/LICENSE)
 [![Nuget](https://img.shields.io/nuget/dt/EFMaterializedPath)](https://www.nuget.org/packages/EFMaterializedPath/)
 
-A simple repository library that provides easy way how to store tree hierarchies in Entity framework
+A simple repository library that provides an easy way to store tree hierarchies in Entity Framework Core.
 
 ## Contents
 * [Installation](#installation)
@@ -25,7 +25,7 @@ A simple repository library that provides easy way how to store tree hierarchies
 * * [SetParentAsync](#setparentasync)
 * * [DetachNodeAsync](#detachnodeasync)
 * * [RemoveNodeAsync](#removenodeasync)
-* [Identifier types](#identifier-types) 
+* [Identifier types](#identifier-types)
 * [Running tests](#running-tests)
 * [Changelog](#changelog)
 
@@ -58,6 +58,14 @@ tree hierarchy. To be able to contain these saves as an atomic operation along w
 **use transactions**. `SetParentAsync`, `DetachNodeAsync` and `RemoveNodeAsync` each save once, so each of them is
 atomic on its own; a transaction is what makes several of them, together with your own changes, atomic as a whole.
 
+When the save fails, the database is unchanged in all three cases, but the entities in memory differ:
+* `DetachNodeAsync` and `RemoveNodeAsync` put the entities they changed and the change tracker back as they were,
+  so you can retry with the same context and instances.
+* `SetParentAsync` does not: the node and its tracked descendants keep the new `Path`, `Level` and `ParentId` and
+  stay marked as modified, so the next `SaveChanges` on that context would store them. Discard the context (or call
+  `ChangeTracker.Clear()`) and reload the entities before retrying.
+* Rolling back a transaction never touches the entities in memory; reload them after a rollback.
+
 TreeRepository trusts the `Path` of the entities you pass in and has no concurrency check. If another context or
 process changed the tree after you loaded an entity, using that outdated entity as the node or the parent of a write
 operation stores wrong paths. Load (or reload) the entities in the same context, and ideally the same transaction,
@@ -77,8 +85,8 @@ database compares text. They are covered by the integration tests.
 
 * **Depth.** A path holds one serialized id per ancestor, so the depth limit depends on how long your ids are:
   with `int` ids below 1 000 000 SQL Server allows about 64 levels. Moving a node deeper than the limit fails with
-  `DbUpdateException` and stores nothing. On SQL Server the 450 comes from EF Core's default size for indexed
-  string columns.
+  `DbUpdateException` and stores nothing (see above for what happens to the entities in memory). On SQL Server
+  the 450 comes from EF Core's default size for indexed string columns.
 * **Descendant queries on PostgreSQL** scan the table unless the database or the `Path` column uses the `"C"`
   collation (`builder.Property(e => e.Path).UseCollation("C")`), or you add an index with `text_pattern_ops`:
   `CREATE INDEX ... ON "Categories" ("Path" text_pattern_ops)`.
@@ -91,21 +99,26 @@ database compares text. They are covered by the integration tests.
 ## Usage
 ### 1. Create entity implementing IMaterializedPathEntity
 ```c#
+using EFMaterializedPath.Entity;
+
 public class Category : IMaterializedPathEntity<int>
 {
     /* Props from IMaterializedPathEntity */
     public int Id { get; set; }
-    public string Path { get; set; }
+    public string Path { get; set; } = "";
     public int Level { get; set; }
     public int? ParentId { get; set; }
     
     /* Custom props */
-    public string Name { get; set; }
+    public string Name { get; set; } = "";
 }
 ```
 
 ### 2. Register it in your DbContext
 ```c#
+using EFMaterializedPath.Entity;
+using Microsoft.EntityFrameworkCore;
+
 public class MyDbContext : DbContext
 {
     // Register as DbSet
@@ -120,8 +133,10 @@ public class MyDbContext : DbContext
 }
 ```
 
-### 3. Register ITreeRepository IoC & use repository 
+### 3. Register ITreeRepository IoC & use repository
 ```c#
+using EFMaterializedPath.Extensions;
+
 public void ConfigureServices(IServiceCollection services)
 {
     services.AddDbContext<MyDbContext>();
@@ -133,10 +148,23 @@ public void ConfigureServices(IServiceCollection services)
 ```
 **or** create your own instance
 ```c#
+using EFMaterializedPath;
+
 var repo = new TreeRepository<MyDbContext, Category, int>(
-    myDbContextInstance, 
+    myDbContextInstance,
     new IntIdentifierSerializer()
 );
+```
+
+### 4. Add nodes
+A new entity is a root once saved. To place it in the tree, save it first (so it has an id), then set its parent:
+```c#
+var phones = new Category { Name = "Phones" };
+dbContext.Categories.Add(phones);
+await dbContext.SaveChangesAsync();                  // phones is now a root
+
+var electronics = await repository.GetByIdAsync(1);
+await repository.SetParentAsync(phones, electronics); // saves again; phones is now a child of 1
 ```
 
 ## ITreeRepository READ API
@@ -178,7 +206,7 @@ Gets parent of queried entity
 ```
 
 ### GetPathFromRootAsync
-Returns nodes from root to queried node in order
+Returns the ancestors of the queried node in order from the root (the node itself is not included)
 ```c#
         ┌───────1───────┐   
         │       │       │
@@ -248,7 +276,7 @@ Get all nodes that precede queried node (not always in order from root)
 ```
 
 ### QueryDescendants
-Get all nodes which have queries node as ancestor
+Get all nodes which have the queried node as ancestor
 ```c#
         ┌───────1───────┐   
         │       │       │
@@ -279,7 +307,7 @@ Gets all sibling nodes (self is not included)
     7
     
     var node = await dbContext.Categories.FindAsync(2);
-    var childrenOfOne = await repository.QuerySiblings(node).ToListAsync();
+    var siblingsOfTwo = await repository.QuerySiblings(node).ToListAsync();
     // will yield nodes 3,4
 ```
 
@@ -302,7 +330,7 @@ Get all direct children of queried node
 ```
 
 ### IsAncestorOf / IsDescendantOf
-Tells whether one node is above the other in the tree, from the paths of the entities as loaded, without a query.
+Tells whether one node is above the other in the tree, from the descendant's `Path` as loaded, without a query.
 A node is not its own ancestor or descendant.
 ```c#
         ┌───────1───────┐   
@@ -449,27 +477,35 @@ Deletes node from the tree. Children are parented to parent of deleted node.
 ```
 
 ## Identifier types
-This package supports various types used as primary key, including possibility
-to add your own. Only condition is it must be struct. It's necessary for the 
-library to be able to serialize/deserialize the identifier types to be used
-in path strings.
-Package ships support for int & Guid by using AddDefaultIdentifierSerializers()
-on your ServiceCollection. (A string serializer is registered too, but string keys
+This package supports various types used as primary key, including the possibility
+to add your own. The identifier type must be a struct, and the library must be able to
+serialize/deserialize it to be used in path strings.
+The package ships support for `int` & `Guid` via `AddDefaultIdentifierSerializers()`
+on your `IServiceCollection`. (A string serializer is registered too, but string keys
 can't be used because the identifier type must be a struct.)
 
-If you need to support your own identifier type, all you need to do is implement
-simple interface IIdentifierSerializer<TId> & register it in container.
+The default value of the identifier type (`0`, `Guid.Empty`) means "not saved yet": every repository method
+throws `InvalidOperationException` for an entity with that id, so save new entities before passing them in, and
+don't use the default value as a real key.
 
-This is sample implementation of "int" type serializer.
+If you need to support your own identifier type, implement the
+`IIdentifierSerializer<TId>` interface & register it in the container. The serialized text must be the same on
+every machine (use the invariant culture), must not contain `|`, and two ids must not serialize to texts that
+differ only by letter case (see [Database limits](#database-limits)).
+
+This is a serializer for `int` that writes the same paths as the built-in `IntIdentifierSerializer`:
 ```c#
-public class IntIdentifierSerializer: IIdentifierSerializer<int>
+using System.Globalization;
+using EFMaterializedPath;
+
+public class MyIntIdentifierSerializer : IIdentifierSerializer<int>
 {
-    public string SerializeIdentifier(int id) => id.ToString();
-    public int DeserializeIdentifier(string id) => int.Parse(id);
+    public string SerializeIdentifier(int id) => id.ToString(CultureInfo.InvariantCulture);
+    public int DeserializeIdentifier(string id) => int.Parse(id, CultureInfo.InvariantCulture);
 }
 // ...
 // And register via
-services.AddTransient<IIdentifierSerializer<int>, IntIdentifierSerializer>();
+services.AddTransient<IIdentifierSerializer<int>, MyIntIdentifierSerializer>();
 ```
 
 ## Running tests
@@ -480,7 +516,10 @@ dotnet test --filter "Category!=Docker"   # InMemory and SQLite only
 ```
 
 ## Changelog
-### Unreleased
+### 10.0.15 (11.11.2026)
+Upgraded to .NET 10. Requires .NET 10 and EF Core 10; projects on .NET 8 should stay on 8.0.2. This release also
+contains the API, behaviour and bug-fix changes below; read the **Breaking** items when upgrading from 8.0.2.
+
 **Breaking:** `Query()` and `QueryRoots()` now return `IQueryable<TEntity>` instead of `IQueryable<TEntity?>`; rows
 were never null. Already compiled code keeps working, since only nullability annotations changed. Remove `!` or `?`
 you added to work around it; classes implementing `ITreeRepository` must change these two signatures.
@@ -505,9 +544,12 @@ explicitly; its output is unchanged.
 **Breaking (stored data):** only if you have negative `int` ids *and* the application ran under a culture whose
 negative sign is not `-` (e.g. `sv-SE`, `fi-FI`, `nb-NO` write U+2212 `−`). Those rows' paths keep the old form, so
 descendant, children and sibling queries no longer match them. Reading them still works. `ValidateAsync` reports them
-as `WrongPath`; fix them once with:
+as `WrongPath`; fix them once with (replace `Categories` with your table name):
 ```sql
+-- SQL Server, PostgreSQL
 UPDATE "Categories" SET "Path" = REPLACE("Path", N'−', '-') WHERE "Path" LIKE N'%−%';
+-- SQLite
+UPDATE "Categories" SET "Path" = REPLACE("Path", '−', '-') WHERE "Path" LIKE '%−%';
 ```
 
 Fixed `DetachNodeAsync` and `RemoveNodeAsync` throwing on PostgreSQL and SQL Server (`A command is already in
@@ -529,14 +571,9 @@ Behaviour changes, all providers:
   side effect; if the context already tracks another instance of the same row, both instances are updated.
 
 Documented the per-database limits (maximum tree depth, index use of descendant queries, rules for custom identifier
-serializers) under [Database limits](#database-limits), and the behaviour on partial failure and with outdated
-entities under [Considerations](#considerations). No change in behaviour.
-```
-No framework or dependency changes
-```
-
-### 10.0.15 (11.11.2026)
-Upgraded to .NET 10. Requires .NET 10 and EF Core 10; projects on .NET 8 should stay on 8.0.2.
+serializers) under [Database limits](#database-limits), and the behaviour on partial failure (including what is
+left in memory when a save fails) and with outdated entities under [Considerations](#considerations). No change in
+behaviour.
 ```
 Target framework net8.0 -> net10.0
 Microsoft.EntityFrameworkCore 8.0.2 -> 10.0.15
