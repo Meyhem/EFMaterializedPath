@@ -90,6 +90,16 @@ public class TreeRepository<TDbContext, TEntity, TId>(
             .OrderBy(o => path.IndexOf(o.Id));
     }
 
+    public bool IsAncestorOf(TEntity ancestor, TEntity node)
+    {
+        AssertIsStoredEntity(ancestor);
+        AssertIsStoredEntity(node);
+
+        return ParsePath(node.Path).Contains(ancestor.Id);
+    }
+
+    public bool IsDescendantOf(TEntity node, TEntity ancestor) => IsAncestorOf(ancestor, node);
+
     public async Task<IReadOnlyList<TreeProblem<TId>>> ValidateAsync()
     {
         var rows = (await Set

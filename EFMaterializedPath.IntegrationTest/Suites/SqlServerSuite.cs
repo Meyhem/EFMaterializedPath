@@ -88,3 +88,9 @@ public class SqlServer_ValidateAsync(SqlServerFixture db) : TestTreeRepository_V
 {
     protected override ITestDatabase Database => db;
 }
+
+[Collection(SqlServerCollection.Name), Trait(Traits.Category, Traits.Docker)]
+public class SqlServer_IsAncestorOf(SqlServerFixture db) : TestTreeRepository_IsAncestorOf
+{
+    protected override ITestDatabase Database => db;
+}

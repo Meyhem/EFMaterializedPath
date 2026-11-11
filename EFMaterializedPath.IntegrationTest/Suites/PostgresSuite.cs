@@ -88,3 +88,9 @@ public class Postgres_ValidateAsync(PostgresFixture db) : TestTreeRepository_Val
 {
     protected override ITestDatabase Database => db;
 }
+
+[Collection(PostgresCollection.Name), Trait(Traits.Category, Traits.Docker)]
+public class Postgres_IsAncestorOf(PostgresFixture db) : TestTreeRepository_IsAncestorOf
+{
+    protected override ITestDatabase Database => db;
+}

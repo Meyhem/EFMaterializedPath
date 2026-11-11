@@ -19,6 +19,7 @@ A simple repository library that provides easy way how to store tree hierarchies
 * * [QueryDescendants](#querydescendants)
 * * [QuerySiblings](#querysiblings)
 * * [QueryChildren](#querychildren)
+* * [IsAncestorOf / IsDescendantOf](#isancestorof--isdescendantof)
 * * [ValidateAsync](#validateasync)
 * [ITreeRepository WRITE API](#itreerepository-write-api)
 * * [SetParentAsync](#setparentasync)
@@ -300,6 +301,29 @@ Get all direct children of queried node
     // will yield nodes 2,3,4
 ```
 
+### IsAncestorOf / IsDescendantOf
+Tells whether one node is above the other in the tree, from the paths of the entities as loaded, without a query.
+A node is not its own ancestor or descendant.
+```c#
+        ┌───────1───────┐   
+        │       │       │
+    ┌───2───┐   3       4
+    │       │           │
+    5       6           8
+    │       │
+    9       10
+    │
+    7
+
+    var two = await dbContext.Categories.FindAsync(2);
+    var seven = await dbContext.Categories.FindAsync(7);
+    var three = await dbContext.Categories.FindAsync(3);
+
+    repository.IsAncestorOf(two, seven);    // true
+    repository.IsDescendantOf(seven, two);  // true
+    repository.IsAncestorOf(three, seven);  // false
+```
+
 ### ValidateAsync
 Checks the whole stored tree and reports inconsistent nodes, e.g. after the tree was changed outside
 TreeRepository. `ParentId` is taken as the truth; only the node at fault is reported, not its descendants. Reads the
@@ -469,6 +493,10 @@ signature changes.
 Added [`ValidateAsync`](#validateasync), which reports nodes whose `ParentId` points to a missing row or forms a
 cycle, or whose `Path` or `Level` does not match their ancestors. New public types `TreeProblem<TId>` and
 `TreeProblemKind`. **Breaking** only for classes implementing `ITreeRepository`: they must add this member.
+
+Added [`IsAncestorOf` and `IsDescendantOf`](#isancestorof--isdescendantof), which check whether one node is above the
+other from the loaded paths, without a query. **Breaking** only for classes implementing `ITreeRepository`: they
+must add these members.
 
 Fixed `DetachNodeAsync` and `RemoveNodeAsync` throwing on PostgreSQL and SQL Server (`A command is already in
 progress` / `There is already an open DataReader`) when the node has children. Affects every user of those providers;

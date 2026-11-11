@@ -74,3 +74,8 @@ public class Sqlite_ValidateAsync : TestTreeRepository_ValidateAsync
 {
     protected override ITestDatabase Database => SqliteTestDatabase.Instance;
 }
+
+public class Sqlite_IsAncestorOf : TestTreeRepository_IsAncestorOf
+{
+    protected override ITestDatabase Database => SqliteTestDatabase.Instance;
+}

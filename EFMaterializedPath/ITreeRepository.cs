@@ -86,6 +86,35 @@ public interface ITreeRepository<TEntity, TId>
     Task<IEnumerable<TEntity>> GetPathFromRootAsync(TEntity entity);
 
     /// <summary>
+    /// Tells whether <paramref name="ancestor"/> is an ancestor of <paramref name="node"/>. A node is not its own
+    /// ancestor.
+    /// </summary>
+    /// <remarks>
+    /// Method does not query the database: it reads <paramref name="node"/>'s <c>Path</c> as loaded, so the result
+    /// is outdated if the tree changed after <paramref name="node"/> was loaded.
+    /// </remarks>
+    /// <param name="ancestor">Possible ancestor</param>
+    /// <param name="node">Node whose ancestors are checked</param>
+    /// <returns><c>true</c> if <paramref name="ancestor"/> is on the path from the root to <paramref name="node"/></returns>
+    /// <exception cref="System.ArgumentNullException">Either entity is null.</exception>
+    /// <exception cref="System.InvalidOperationException">Either entity has no id yet.</exception>
+    bool IsAncestorOf(TEntity ancestor, TEntity node);
+
+    /// <summary>
+    /// Tells whether <paramref name="node"/> is a descendant of <paramref name="ancestor"/>; the same as
+    /// <see cref="IsAncestorOf"/> with the arguments swapped. A node is not its own descendant.
+    /// </summary>
+    /// <remarks>
+    /// Method does not query the database: it reads <paramref name="node"/>'s <c>Path</c> as loaded.
+    /// </remarks>
+    /// <param name="node">Node whose ancestors are checked</param>
+    /// <param name="ancestor">Possible ancestor</param>
+    /// <returns><c>true</c> if <paramref name="ancestor"/> is on the path from the root to <paramref name="node"/></returns>
+    /// <exception cref="System.ArgumentNullException">Either entity is null.</exception>
+    /// <exception cref="System.InvalidOperationException">Either entity has no id yet.</exception>
+    bool IsDescendantOf(TEntity node, TEntity ancestor);
+
+    /// <summary>
     /// Checks the whole stored tree for inconsistent nodes: a <c>ParentId</c> pointing to a missing row, a cycle of
     /// <c>ParentId</c>s, or a <c>Path</c> / <c>Level</c> that does not match the ancestors given by <c>ParentId</c>.
     /// </summary>
