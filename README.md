@@ -1,11 +1,12 @@
 # EFMaterializedPath
 ![Tests](https://github.com/Meyhem/EFMaterializedPath/actions/workflows/dotnet.yml/badge.svg)
-[![GitHub license](https://img.shields.io/github/license/Naereen/StrapDown.js.svg)](https://github.com/Naereen/StrapDown.js/blob/master/LICENSE)
+[![GitHub license](https://img.shields.io/github/license/Meyhem/EFMaterializedPath.svg)](https://github.com/Meyhem/EFMaterializedPath/blob/master/LICENSE)
 [![Nuget](https://img.shields.io/nuget/dt/EFMaterializedPath)](https://www.nuget.org/packages/EFMaterializedPath/)
 
 A simple repository library that provides easy way how to store tree hierarchies in Entity framework
 
 ## Contents
+* [Installation](#installation)
 * [Considerations](#considerations)
 * [Usage](#usage)
 * [ITreeRepository READ API](#itreerepository-read-api)
@@ -21,13 +22,26 @@ A simple repository library that provides easy way how to store tree hierarchies
 * [ITreeRepository WRITE API](#itreerepository-write-api)
 * * [SetParentAsync](#setparentasync)
 * * [DetachNodeAsync](#detachnodeasync)
-* * [DeleteNodeAsync](#deletenodeasync)
+* * [RemoveNodeAsync](#removenodeasync)
 * [Identifier types](#identifier-types) 
 * [Changelog](#changelog)
 
+## Installation
+```
+dotnet add package EFMaterializedPath
+```
+
+| Package version | Target framework | EF Core |
+|-----------------|------------------|---------|
+| 10.0.x          | .NET 10          | 10.0.x  |
+| 8.0.x           | .NET 8           | 8.0.x   |
+| 1.0.x           | .NET 5           | 5.0.x   |
+
+Pick the package version matching your EF Core major version.
+
 ## Considerations
 There are multiple approaches to storing hierarchical data in SQL tables, each having pros/cons.
-Materialized path is viable in case you have hierarchy that is ofter read, but rarely written. 
+Materialized path is viable in case you have hierarchy that is often read, but rarely written. 
 E.g. product catalogue, categories...
 
 It's not possible to ensure referential integrity by SQL constraints, and it's
@@ -67,7 +81,7 @@ public class MyDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
         // Apply prepared configuration
-        modelBuilder.ApplyConfiguration(new MaterializedEntityMapping<Category>());
+        modelBuilder.ApplyConfiguration(new MaterializedEntityMapping<Category, int>());
     }
 }
 ```
@@ -77,15 +91,15 @@ public class MyDbContext : DbContext
 public void ConfigureServices(IServiceCollection services)
 {
     services.AddDbContext<MyDbContext>();
-    // This registers ITreeRepository<Category> for you to use
-    services.AddTreeRepository<MyDbContext, Category>();
-    // This adds support for default identifier types (int, string, Guid)
+    // This registers ITreeRepository<Category, int> for you to use
+    services.AddTreeRepository<MyDbContext, Category, int>();
+    // This adds serializers for the default identifier types (int, Guid)
     services.AddDefaultIdentifierSerializers();
 }
 ```
 **or** create your own instance
 ```c#
-var repo = new TreeRepository<MyDbContext, Category>(
+var repo = new TreeRepository<MyDbContext, Category, int>(
     myDbContextInstance, 
     new IntIdentifierSerializer()
 );
@@ -124,7 +138,7 @@ Gets parent of queried entity
     │
     7
     
-    var node = dbContext.Categories.FindAsync(2);
+    var node = await dbContext.Categories.FindAsync(2);
     var parentOfTwo = await repository.GetParentAsync(node);
     // will yield node 1
 ```
@@ -142,7 +156,7 @@ Returns nodes from root to queried node in order
     │
     7
     
-    var node = dbContext.Categories.FindAsync(10);
+    var node = await dbContext.Categories.FindAsync(10);
     var pathFromRootToTen = await repository.GetPathFromRootAsync(node);
     // will yield nodes 1,2,6
 ```
@@ -194,7 +208,7 @@ Get all nodes that precede queried node (not always in order from root)
     │
     7
     
-    var node = dbContext.Categories.FindAsync(5);
+    var node = await dbContext.Categories.FindAsync(5);
     var ancestorsOfFive = await repository.QueryAncestors(node).ToListAsync();
     // will yield nodes 2, 1
 ```
@@ -212,7 +226,7 @@ Get all nodes which have queries node as ancestor
     │
     7
     
-    var node = dbContext.Categories.FindAsync(2);
+    var node = await dbContext.Categories.FindAsync(2);
     var descendantsOfTwo = await repository.QueryDescendants(node).ToListAsync();
     // will yield nodes 5, 6, 9, 10, 7
 ```
@@ -230,7 +244,7 @@ Gets all sibling nodes (self is not included)
     │
     7
     
-    var node = dbContext.Categories.FindAsync(2);
+    var node = await dbContext.Categories.FindAsync(2);
     var childrenOfOne = await repository.QuerySiblings(node).ToListAsync();
     // will yield nodes 3,4
 ```
@@ -248,7 +262,7 @@ Get all direct children of queried node
     │
     7
     
-    var node = dbContext.Categories.FindAsync(1);
+    var node = await dbContext.Categories.FindAsync(1);
     var childrenOfOne = await repository.QueryChildren(node).ToListAsync();
     // will yield nodes 2,3,4
 ```
@@ -268,8 +282,8 @@ Updates node and all its descendants, will save the underlying context
     │
     7
 
-    var nodeTwo = dbContext.Categories.FindAsync(2);
-    var nodeThree = dbContext.Categories.FindAsync(3);
+    var nodeTwo = await dbContext.Categories.FindAsync(2);
+    var nodeThree = await dbContext.Categories.FindAsync(3);
     
     await repository.SetParentAsync(nodeTwo, nodeThree);
     // Will produce following tree
@@ -297,7 +311,7 @@ Updates node and all its descendants, will save the underlying context
     │
     7
 
-    var nodeTwo = dbContext.Categories.FindAsync(2);
+    var nodeTwo = await dbContext.Categories.FindAsync(2);
     
     await repository.SetParentAsync(nodeTwo, null);
     // Will produce following trees
@@ -325,7 +339,7 @@ Detaches node from tree, attaching children to detachee's parent.
     │
     7
 
-    var nodeTwo = dbContext.Categories.FindAsync(2);
+    var nodeTwo = await dbContext.Categories.FindAsync(2);
     await repository.DetachNodeAsync(nodeTwo);
     // Will produce following trees (notice detached 2, and reparented 5,6)
     2       ┌─────┬──1──┬─────┐     
@@ -337,7 +351,7 @@ Detaches node from tree, attaching children to detachee's parent.
             7        
 ```
 
-### DeleteNodeAsync
+### RemoveNodeAsync
 Deletes node from the tree. Children are parented to parent of deleted node.
 ```c#
         ┌───────1───────┐   
@@ -350,8 +364,8 @@ Deletes node from the tree. Children are parented to parent of deleted node.
     │
     7
 
-    var nodeTwo = dbContext.Categories.FindAsync(2);
-    await repository.DeleteNodeAsync(nodeTwo);
+    var nodeTwo = await dbContext.Categories.FindAsync(2);
+    await repository.RemoveNodeAsync(nodeTwo);
     // Will produce following tree
     ┌─────┬──1──┬─────┐     
     │     │     │     │
@@ -367,8 +381,9 @@ This package supports various types used as primary key, including possibility
 to add your own. Only condition is it must be struct. It's necessary for the 
 library to be able to serialize/deserialize the identifier types to be used
 in path strings.
-Package ships support for int, string & Guid by using AddDefaultIdentifierSerializers()
-on your ServiceCollection. 
+Package ships support for int & Guid by using AddDefaultIdentifierSerializers()
+on your ServiceCollection. (A string serializer is registered too, but string keys
+can't be used because the identifier type must be a struct.)
 
 If you need to support your own identifier type, all you need to do is implement
 simple interface IIdentifierSerializer<TId> & register it in container.
@@ -392,6 +407,15 @@ Upgraded to .NET 10. Requires .NET 10 and EF Core 10; projects on .NET 8 should 
 Target framework net8.0 -> net10.0
 Microsoft.EntityFrameworkCore 8.0.2 -> 10.0.15
 Microsoft.EntityFrameworkCore.Relational 8.0.2 -> 10.0.15
+```
+
+### 8.0.2 (03.03.2024)
+Upgraded to .NET 8. Package version now follows the EF Core version.
+`Query()`, `QueryRoots()` and `GetByIdAsync()` return nullable entity types.
+```
+Target framework net5.0 -> net8.0
+Microsoft.EntityFrameworkCore 5.0.9 -> 8.0.2
+Microsoft.EntityFrameworkCore.Relational 5.0.9 -> 8.0.2
 ```
 
 ### 1.0.8 (28.08.2021)
