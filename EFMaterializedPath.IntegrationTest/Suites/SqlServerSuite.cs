@@ -82,3 +82,9 @@ public class SqlServer_RandomOperations(SqlServerFixture db) : TestTreeRepositor
 {
     protected override ITestDatabase Database => db;
 }
+
+[Collection(SqlServerCollection.Name), Trait(Traits.Category, Traits.Docker)]
+public class SqlServer_ValidateAsync(SqlServerFixture db) : TestTreeRepository_ValidateAsync
+{
+    protected override ITestDatabase Database => db;
+}

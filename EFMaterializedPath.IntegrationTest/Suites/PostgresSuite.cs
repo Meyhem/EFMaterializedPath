@@ -82,3 +82,9 @@ public class Postgres_RandomOperations(PostgresFixture db) : TestTreeRepository_
 {
     protected override ITestDatabase Database => db;
 }
+
+[Collection(PostgresCollection.Name), Trait(Traits.Category, Traits.Docker)]
+public class Postgres_ValidateAsync(PostgresFixture db) : TestTreeRepository_ValidateAsync
+{
+    protected override ITestDatabase Database => db;
+}

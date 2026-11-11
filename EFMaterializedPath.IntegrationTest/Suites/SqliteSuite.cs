@@ -69,3 +69,8 @@ public class Sqlite_RandomOperations : TestTreeRepository_RandomOperations
 {
     protected override ITestDatabase Database => SqliteTestDatabase.Instance;
 }
+
+public class Sqlite_ValidateAsync : TestTreeRepository_ValidateAsync
+{
+    protected override ITestDatabase Database => SqliteTestDatabase.Instance;
+}

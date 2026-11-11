@@ -19,6 +19,7 @@ A simple repository library that provides easy way how to store tree hierarchies
 * * [QueryDescendants](#querydescendants)
 * * [QuerySiblings](#querysiblings)
 * * [QueryChildren](#querychildren)
+* * [ValidateAsync](#validateasync)
 * [ITreeRepository WRITE API](#itreerepository-write-api)
 * * [SetParentAsync](#setparentasync)
 * * [DetachNodeAsync](#detachnodeasync)
@@ -299,6 +300,20 @@ Get all direct children of queried node
     // will yield nodes 2,3,4
 ```
 
+### ValidateAsync
+Checks the whole stored tree and reports inconsistent nodes, e.g. after the tree was changed outside
+TreeRepository. `ParentId` is taken as the truth; only the node at fault is reported, not its descendants. Reads the
+whole table into memory in one query and never modifies data.
+```c#
+    var problems = await repository.ValidateAsync();
+    foreach (var problem in problems)
+    {
+        // problem.Kind is MissingParent, Cycle, WrongPath or WrongLevel
+        Console.WriteLine($"{problem.Id}: {problem.Kind} - {problem.Message}");
+    }
+    // Empty for a consistent tree
+```
+
 ## ITreeRepository WRITE API
 ### SetParentAsync
 Updates node and all its descendants, will save the underlying context
@@ -450,6 +465,10 @@ once per child, once more for the node and, for `RemoveNodeAsync`, once more for
 tree unchanged instead of partly moved, and large subtrees need one descendants query instead of one per child.
 Affects code that counts saves, e.g. `SaveChanges` interceptors or audit logs expecting one event per child; no
 signature changes.
+
+Added [`ValidateAsync`](#validateasync), which reports nodes whose `ParentId` points to a missing row or forms a
+cycle, or whose `Path` or `Level` does not match their ancestors. New public types `TreeProblem<TId>` and
+`TreeProblemKind`. **Breaking** only for classes implementing `ITreeRepository`: they must add this member.
 
 Fixed `DetachNodeAsync` and `RemoveNodeAsync` throwing on PostgreSQL and SQL Server (`A command is already in
 progress` / `There is already an open DataReader`) when the node has children. Affects every user of those providers;

@@ -86,6 +86,19 @@ public interface ITreeRepository<TEntity, TId>
     Task<IEnumerable<TEntity>> GetPathFromRootAsync(TEntity entity);
 
     /// <summary>
+    /// Checks the whole stored tree for inconsistent nodes: a <c>ParentId</c> pointing to a missing row, a cycle of
+    /// <c>ParentId</c>s, or a <c>Path</c> / <c>Level</c> that does not match the ancestors given by <c>ParentId</c>.
+    /// </summary>
+    /// <remarks>
+    /// <c>ParentId</c> is taken as the truth. Only the node at fault is reported, not its descendants; nodes below a
+    /// missing parent or a cycle cannot be checked and are not reported.
+    /// Method reads <c>Id</c>, <c>ParentId</c>, <c>Path</c> and <c>Level</c> of every row into memory in one query,
+    /// bypassing the change tracker, and never modifies data.
+    /// </remarks>
+    /// <returns>Problems ordered by node id, empty if the tree is consistent</returns>
+    Task<IReadOnlyList<TreeProblem<TId>>> ValidateAsync();
+
+    /// <summary>
     /// Sets <paramref name="parent"/> node of <paramref name="entity"/>
     /// </summary>
     /// <remarks>

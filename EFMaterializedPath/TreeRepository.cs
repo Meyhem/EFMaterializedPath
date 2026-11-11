@@ -90,6 +90,114 @@ public class TreeRepository<TDbContext, TEntity, TId>(
             .OrderBy(o => path.IndexOf(o.Id));
     }
 
+    public async Task<IReadOnlyList<TreeProblem<TId>>> ValidateAsync()
+    {
+        var rows = (await Set
+                .AsNoTracking()
+                .Select(e => new { e.Id, e.ParentId, e.Path, e.Level })
+                .ToListAsync())
+            .ToDictionary(r => r.Id);
+
+        var problems = new List<TreeProblem<TId>>();
+
+        // Ancestors of each node as given by ParentId, root first; null when they cannot be determined (the chain
+        // up from the node ends in a missing parent or a cycle).
+        var ancestors = new Dictionary<TId, List<TId>?>();
+
+        foreach (var id in rows.Keys)
+        {
+            if (ancestors.ContainsKey(id))
+            {
+                continue;
+            }
+
+            // Walk up until reaching a root, a node already resolved, a missing parent, or a node seen on this walk.
+            // Iterative, as trees can be deeper than a safe recursion depth on databases without a path limit.
+            var chain = new List<TId>();
+            var positionInChain = new Dictionary<TId, int>();
+            var current = id;
+            while (true)
+            {
+                positionInChain[current] = chain.Count;
+                chain.Add(current);
+
+                if (rows[current].ParentId is not { } parentId)
+                {
+                    ancestors[current] = [];
+                    break;
+                }
+
+                if (!rows.ContainsKey(parentId))
+                {
+                    problems.Add(new TreeProblem<TId>(current, TreeProblemKind.MissingParent,
+                        $"Node {current} points to parent {parentId}, which does not exist."));
+                    ancestors[current] = null;
+                    break;
+                }
+
+                if (positionInChain.TryGetValue(parentId, out var cycleStart))
+                {
+                    foreach (var inCycle in chain.Skip(cycleStart))
+                    {
+                        problems.Add(new TreeProblem<TId>(inCycle, TreeProblemKind.Cycle,
+                            $"Node {inCycle} is part of a ParentId cycle and has no root."));
+                        ancestors[inCycle] = null;
+                    }
+
+                    break;
+                }
+
+                if (ancestors.TryGetValue(parentId, out var parentAncestors))
+                {
+                    ancestors[current] = parentAncestors is null ? null : [..parentAncestors, parentId];
+                    break;
+                }
+
+                current = parentId;
+            }
+
+            // Each chain element's parent is the next element, which is resolved by now.
+            for (var i = chain.Count - 2; i >= 0; i--)
+            {
+                if (ancestors.ContainsKey(chain[i]))
+                {
+                    continue;
+                }
+
+                var parentAncestors = ancestors[chain[i + 1]];
+                ancestors[chain[i]] = parentAncestors is null ? null : [..parentAncestors, chain[i + 1]];
+            }
+        }
+
+        foreach (var row in rows.Values)
+        {
+            if (ancestors[row.Id] is not { } expected)
+            {
+                continue;
+            }
+
+            // InMemory ignores the column default, so a never-moved root can have a null Path.
+            var storedPath = row.Path ?? "";
+            var expectedPath = FormatPath(expected);
+            if (storedPath != expectedPath)
+            {
+                problems.Add(new TreeProblem<TId>(row.Id, TreeProblemKind.WrongPath,
+                    $"Node {row.Id} has path '{storedPath}', expected '{expectedPath}'."));
+            }
+
+            if (row.Level != expected.Count)
+            {
+                problems.Add(new TreeProblem<TId>(row.Id, TreeProblemKind.WrongLevel,
+                    $"Node {row.Id} has level {row.Level}, expected {expected.Count}."));
+            }
+        }
+
+        return problems
+            .OrderBy(p => p.Id)
+            .ThenBy(p => p.Kind)
+            .ToList();
+    }
+
     public async Task<TEntity?> GetParentAsync(TEntity entity)
     {
         AssertIsStoredEntity(entity);
