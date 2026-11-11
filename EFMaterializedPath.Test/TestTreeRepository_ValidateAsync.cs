@@ -63,6 +63,16 @@ public class TestTreeRepository_ValidateAsync : TreeRepositoryTestBase
     }
 
     [Fact]
+    public async Task ReportsWholeSubtreeOfManuallyReparentedNode()
+    {
+        // ParentId is the truth, so after moving 5 under 3 by hand, 5 and everything below it have outdated paths.
+        var problems = await ValidateCorruptedAsync(5, c => c.ParentId = 3);
+
+        problems.Select(p => (p.Id, p.Kind)).Should().Equal(
+            (5, TreeProblemKind.WrongPath), (7, TreeProblemKind.WrongPath), (9, TreeProblemKind.WrongPath));
+    }
+
+    [Fact]
     public async Task MessageNamesExpectedAndStoredValue()
     {
         var problems = await ValidateCorruptedAsync(5, c => c.Level = 7);

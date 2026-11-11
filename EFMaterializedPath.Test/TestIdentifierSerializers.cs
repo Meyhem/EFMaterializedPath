@@ -25,6 +25,13 @@ public class TestIdentifierSerializers
     }
 
     [Fact]
+    public void IntSerializerReadsMinusSignWrittenByOlderVersions()
+    {
+        // Before the invariant-culture fix, cultures such as sv-SE stored negative ids with U+2212 MINUS SIGN.
+        new IntIdentifierSerializer().DeserializeIdentifier("−5").Should().Be(-5);
+    }
+
+    [Fact]
     public void GuidSerializerRoundTripsInDFormat()
     {
         var serializer = new GuidIdentifierSerializer();

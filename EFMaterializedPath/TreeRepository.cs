@@ -202,10 +202,13 @@ public class TreeRepository<TDbContext, TEntity, TId>(
             }
         }
 
-        return problems
-            .OrderBy(p => p.Id)
-            .ThenBy(p => p.Kind)
-            .ToList();
+        // Strongly typed ids are often not comparable; their problems keep the order they were found in.
+        var idsAreComparable = typeof(IComparable<TId>).IsAssignableFrom(typeof(TId)) ||
+                               typeof(IComparable).IsAssignableFrom(typeof(TId));
+
+        return idsAreComparable
+            ? problems.OrderBy(p => p.Id).ThenBy(p => p.Kind).ToList()
+            : problems;
     }
 
     public async Task<TEntity?> GetParentAsync(TEntity entity)
@@ -275,34 +278,103 @@ public class TreeRepository<TDbContext, TEntity, TId>(
 
     public async Task DetachNodeAsync(TEntity entity)
     {
-        await DetachWithoutSavingAsync(entity);
-        await dbContext.SaveChangesAsync();
+        var undo = new List<Action>();
+        await DetachWithoutSavingAsync(entity, undo);
+        await SaveOrUndoAsync(undo);
     }
 
     public async Task RemoveNodeAsync(TEntity entity)
     {
-        var tracked = await DetachWithoutSavingAsync(entity);
+        var undo = new List<Action>();
+        var tracked = await DetachWithoutSavingAsync(entity, undo);
 
         Set.Remove(tracked);
-        await dbContext.SaveChangesAsync();
+        await SaveOrUndoAsync(undo);
+    }
+
+    /// <summary>
+    /// Saves the context; if the save fails, runs <paramref name="undo"/> (newest first) so the entities and the change
+    /// tracker are as they were before the operation, then rethrows.
+    /// </summary>
+    private async Task SaveOrUndoAsync(List<Action> undo)
+    {
+        try
+        {
+            await dbContext.SaveChangesAsync();
+        }
+        catch
+        {
+            for (var i = undo.Count - 1; i >= 0; i--)
+            {
+                undo[i]();
+            }
+
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Records how to put <paramref name="instance"/>'s tree properties and its change tracking state back to what they
+    /// are now.
+    /// </summary>
+    private Action Snapshot(TEntity instance)
+    {
+        var (path, level, parentId) = (instance.Path, instance.Level, instance.ParentId);
+        var entry = dbContext.Entry(instance);
+        var state = entry.State;
+        string[] treeProperties =
+            [nameof(IMaterializedPathEntity<TId>.Path), nameof(IMaterializedPathEntity<TId>.Level),
+                nameof(IMaterializedPathEntity<TId>.ParentId)];
+        var modified = state is EntityState.Unchanged or EntityState.Modified
+            ? treeProperties.Select(p => entry.Property(p).IsModified).ToArray()
+            : null;
+
+        return () =>
+        {
+            (instance.Path, instance.Level, instance.ParentId) = (path, level, parentId);
+
+            if (state is EntityState.Detached or EntityState.Added or EntityState.Deleted)
+            {
+                entry.State = state;
+                return;
+            }
+
+            if (entry.State is EntityState.Deleted or EntityState.Detached)
+            {
+                entry.State = EntityState.Unchanged;
+            }
+
+            entry.DetectChanges();
+            for (var i = 0; i < treeProperties.Length; i++)
+            {
+                entry.Property(treeProperties[i]).IsModified = modified![i];
+            }
+        };
     }
 
     /// <summary>
     /// Makes <paramref name="entity"/> a root and removes it from the paths of its descendants, whose children are
-    /// re-parented to its parent. Does not save.
+    /// re-parented to its parent. Does not save; adds to <paramref name="undo"/> what reverts every change it makes.
     /// </summary>
     /// <returns>The instance of <paramref name="entity"/>'s row that the context tracks.</returns>
-    private async Task<TEntity> DetachWithoutSavingAsync(TEntity entity)
+    private async Task<TEntity> DetachWithoutSavingAsync(TEntity entity, List<Action> undo)
     {
         AssertIsStoredEntity(entity);
 
+        undo.Add(Snapshot(entity));
         var tracked = TrackedInstanceOf(entity);
+        if (!ReferenceEquals(tracked, entity))
+        {
+            undo.Add(Snapshot(tracked));
+        }
 
         // The entity's id sits at this index in every descendant's path, right after the entity's own ancestors.
         var entityIndex = ParsePath(entity.Path).Count;
 
         foreach (var descendant in await QueryDescendants(entity).ToListAsync())
         {
+            undo.Add(Snapshot(descendant));
+
             var path = ParsePath(descendant.Path);
             path.RemoveAt(entityIndex);
             descendant.Path = FormatPath(path);

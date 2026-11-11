@@ -6,7 +6,9 @@ namespace EFMaterializedPath;
 public class IntIdentifierSerializer : IIdentifierSerializer<int>
 {
     public string SerializeIdentifier(int id) => id.ToString(CultureInfo.InvariantCulture);
-    public int DeserializeIdentifier(string id) => int.Parse(id, CultureInfo.InvariantCulture);
+    // Also accepts U+2212 MINUS SIGN, which versions before the invariant-culture fix wrote under cultures such as sv-SE.
+    public int DeserializeIdentifier(string id) =>
+        int.Parse(id.Replace('\u2212', '-'), CultureInfo.InvariantCulture);
 }
 
 public class StringIdentifierSerializer : IIdentifierSerializer<string>

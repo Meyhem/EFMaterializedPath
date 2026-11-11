@@ -68,6 +68,53 @@ public abstract class FailureChecks : RelationalCheckBase
     }
 
     [Fact]
+    public async Task FailedDetachLeavesNoPendingChanges()
+    {
+        var nodes = await AddTestTreeAsync();
+        var before = await StoredTreeAsync();
+
+        failingSave.FailOnSave(1);
+        Func<Task> detach = async () => await Repository.DetachNodeAsync(nodes[2]);
+        await detach.Should().ThrowAsync<InjectedFailureException>();
+
+        // A later, unrelated save must not commit what the failed detach left in the change tracker.
+        await DbContext.SaveChangesAsync();
+        (await StoredTreeAsync()).Should().BeEquivalentTo(before, o => o.WithStrictOrdering());
+        nodes[2].Should().BeEquivalentTo(new { ParentId = (int?)1, Level = 1, Path = "|1|" });
+    }
+
+    [Fact]
+    public async Task FailedRemoveLeavesNoPendingChanges()
+    {
+        var nodes = await AddTestTreeAsync();
+        var before = await StoredTreeAsync();
+
+        failingSave.FailOnSave(1);
+        Func<Task> remove = async () => await Repository.RemoveNodeAsync(nodes[2]);
+        await remove.Should().ThrowAsync<InjectedFailureException>();
+
+        await DbContext.SaveChangesAsync();
+        (await StoredTreeAsync()).Should().BeEquivalentTo(before, o => o.WithStrictOrdering());
+    }
+
+    [Fact]
+    public async Task FailedDetachCanBeRetriedWithSameInstance()
+    {
+        var nodes = await AddTestTreeAsync();
+
+        failingSave.FailOnSave(1);
+        Func<Task> detach = async () => await Repository.DetachNodeAsync(nodes[2]);
+        await detach.Should().ThrowAsync<InjectedFailureException>();
+
+        DbContext.ChangeTracker.Clear();
+        await Repository.DetachNodeAsync(nodes[2]);
+
+        var after = await StoredTreeAsync();
+        TreeInvariants.AssertValid(after);
+        after.Select(c => (c.Id, c.ParentId)).Should().Equal((1, null), (2, null), (3, 1), (4, 1), (5, 1), (6, 4));
+    }
+
+    [Fact]
     public async Task RollbackUndoesSuccessfulOperations()
     {
         var nodes = await AddTestTreeAsync();

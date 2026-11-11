@@ -326,8 +326,9 @@ A node is not its own ancestor or descendant.
 
 ### ValidateAsync
 Checks the whole stored tree and reports inconsistent nodes, e.g. after the tree was changed outside
-TreeRepository. `ParentId` is taken as the truth; only the node at fault is reported, not its descendants. Reads the
-whole table into memory in one query and never modifies data.
+TreeRepository. `ParentId` is taken as the truth: a wrong `Path` or `Level` is reported for that node only, but if a
+node's `ParentId` was changed by hand, that node and everything below it are reported. Nodes below a missing parent
+or a cycle are not reported. Reads the whole table into memory in one query and never modifies data.
 ```c#
     var problems = await repository.ValidateAsync();
     foreach (var problem in problems)
@@ -486,7 +487,7 @@ you added to work around it; classes implementing `ITreeRepository` must change 
 
 **Breaking (behaviour):** `DetachNodeAsync` and `RemoveNodeAsync` now call `SaveChanges` once. Previously they saved
 once per child, once more for the node and, for `RemoveNodeAsync`, once more for the delete. A failure now leaves the
-tree unchanged instead of partly moved, and large subtrees need one descendants query instead of one per child.
+tree unchanged instead of partly moved (in the database and in the change tracker), and large subtrees need one descendants query instead of one per child.
 Affects code that counts saves, e.g. `SaveChanges` interceptors or audit logs expecting one event per child; no
 signature changes.
 
@@ -499,8 +500,15 @@ other from the loaded paths, without a query. **Breaking** only for classes impl
 must add these members.
 
 Fixed `IntIdentifierSerializer` depending on the current culture: under a culture with a different negative sign,
-negative ids were written and parsed in that culture's form. Only affects negative `int` ids. `GuidIdentifierSerializer`
-now names its format (`"D"`) explicitly; its output is unchanged.
+negative ids were written and parsed in that culture's form. `GuidIdentifierSerializer` now names its format (`"D"`)
+explicitly; its output is unchanged.
+**Breaking (stored data):** only if you have negative `int` ids *and* the application ran under a culture whose
+negative sign is not `-` (e.g. `sv-SE`, `fi-FI`, `nb-NO` write U+2212 `−`). Those rows' paths keep the old form, so
+descendant, children and sibling queries no longer match them. Reading them still works. `ValidateAsync` reports them
+as `WrongPath`; fix them once with:
+```sql
+UPDATE "Categories" SET "Path" = REPLACE("Path", N'−', '-') WHERE "Path" LIKE N'%−%';
+```
 
 Fixed `DetachNodeAsync` and `RemoveNodeAsync` throwing on PostgreSQL and SQL Server (`A command is already in
 progress` / `There is already an open DataReader`) when the node has children. Affects every user of those providers;

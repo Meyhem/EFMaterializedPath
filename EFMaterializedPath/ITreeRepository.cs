@@ -119,12 +119,17 @@ public interface ITreeRepository<TEntity, TId>
     /// <c>ParentId</c>s, or a <c>Path</c> / <c>Level</c> that does not match the ancestors given by <c>ParentId</c>.
     /// </summary>
     /// <remarks>
-    /// <c>ParentId</c> is taken as the truth. Only the node at fault is reported, not its descendants; nodes below a
-    /// missing parent or a cycle cannot be checked and are not reported.
+    /// <c>ParentId</c> is taken as the truth: each node's <c>Path</c> and <c>Level</c> are compared with the ancestors
+    /// its <c>ParentId</c> chain gives. A wrong <c>Path</c> or <c>Level</c> on one node is reported for that node only,
+    /// but if a node's <c>ParentId</c> was changed outside the repository, that node and every node below it are
+    /// reported. Nodes below a missing parent or a cycle cannot be checked and are not reported.
     /// Method reads <c>Id</c>, <c>ParentId</c>, <c>Path</c> and <c>Level</c> of every row into memory in one query,
     /// bypassing the change tracker, and never modifies data.
     /// </remarks>
-    /// <returns>Problems ordered by node id, empty if the tree is consistent</returns>
+    /// <returns>
+    /// Problems ordered by node id (if <typeparamref name="TId"/> is comparable, otherwise in no particular order), empty
+    /// if the tree is consistent
+    /// </returns>
     Task<IReadOnlyList<TreeProblem<TId>>> ValidateAsync();
 
     /// <summary>
@@ -152,6 +157,8 @@ public interface ITreeRepository<TEntity, TId>
     /// <remarks>
     /// Method does not delete detached node.
     /// Method saves underlying context once, so the whole detach is stored or, if the save fails, nothing is.
+    /// If the save fails, the entities it changed (including <paramref name="entity"/>) and the change tracker are
+    /// put back as they were before the call, so the operation can be retried.
     /// If <paramref name="entity"/> is not tracked by the context, it is attached so its new position is saved.
     /// Method has to update paths of all descendants. This can be performance heavy.
     /// </remarks>
@@ -166,6 +173,8 @@ public interface ITreeRepository<TEntity, TId>
     /// Method deletes whole entity
     /// Method saves underlying context once: re-parenting the children and deleting the node are stored together,
     /// or, if the save fails, nothing is.
+    /// If the save fails, the entities it changed (including <paramref name="entity"/>) and the change tracker are
+    /// put back as they were before the call, so the operation can be retried.
     /// Method has to update paths of all descendants. This can be performance heavy.
     /// </remarks>
     /// <param name="entity">Entity to delete from tree</param>
